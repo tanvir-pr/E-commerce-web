@@ -1,32 +1,20 @@
-"""Enqueue mail and console SMS. The worker performs delivery and does not log secrets."""
+"""Enqueue verification emails via ARQ."""
 
-from arq.connections import ArqRedis
+from typing import Any, Protocol
 
-from app.jobs import (
-    SEND_PASSWORD_RESET_EMAIL,
-    SEND_PHONE_OTP,
-    SEND_STAFF_INVITE_EMAIL,
-    SEND_VERIFICATION_EMAIL,
-)
+
+class Mailer(Protocol):
+    async def send_verification(self, *, email: str, token: str) -> None: ...
 
 
 class ArqMailer:
-    def __init__(self, pool: ArqRedis) -> None:
-        self.pool = pool
+    def __init__(self, arq: Any) -> None:
+        self.arq = arq
 
-    async def send_verification(self, email: str, token: str) -> None:
-        await self.pool.enqueue_job(SEND_VERIFICATION_EMAIL, email, token)
-
-    async def send_password_reset(self, email: str, token: str) -> None:
-        await self.pool.enqueue_job(SEND_PASSWORD_RESET_EMAIL, email, token)
-
-    async def send_staff_invite(self, email: str, token: str) -> None:
-        await self.pool.enqueue_job(SEND_STAFF_INVITE_EMAIL, email, token)
+    async def send_verification(self, *, email: str, token: str) -> None:
+        await self.arq.enqueue_job("send_verification_email", email, token)
 
 
-class ArqSms:
-    def __init__(self, pool: ArqRedis) -> None:
-        self.pool = pool
-
-    async def send_otp(self, phone: str, code: str) -> None:
-        await self.pool.enqueue_job(SEND_PHONE_OTP, phone, code)
+class NullMailer:
+    async def send_verification(self, *, email: str, token: str) -> None:
+        _ = (email, token)

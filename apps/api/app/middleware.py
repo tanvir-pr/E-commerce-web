@@ -1,18 +1,20 @@
-"""Request id and double-submit CSRF. Added as pure ASGI middleware."""
+"""Request id on every request and CSRF for mutating methods."""
 
 import json
 import re
+from http.cookies import SimpleCookie
 from typing import Any
 from uuid import uuid4
 
 import structlog
 
+from app.logging_config import current_request_id
 from app.problems import PROBLEM_CSRF, ProblemError, problem_payload
 from app.security.cookies import CSRF_COOKIE
-from app.security.tokens import tokens_match
 
-_UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 _REQUEST_ID_RE = re.compile(r"[A-Za-z0-9._:-]{1,128}")
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+_CSRF_EXEMPT_PATHS = {"/api/v1/health"}
 
 
 def _headers(scope: dict[str, Any]) -> dict[str, str]:
@@ -22,20 +24,19 @@ def _headers(scope: dict[str, Any]) -> dict[str, str]:
     return found
 
 
-def _cookies(header: str) -> dict[str, str]:
-    parsed: dict[str, str] = {}
-    for part in header.split(";"):
-        if "=" not in part:
-            continue
-        name, value = part.split("=", 1)
-        parsed[name.strip()] = value.strip()
-    return parsed
-
-
-def _request_id(raw: str | None) -> str:
+def request_id_value(raw: str | None) -> str:
     if raw and _REQUEST_ID_RE.fullmatch(raw):
         return raw
     return str(uuid4())
+
+
+def _csrf_from_cookie(cookie_header: str | None) -> str:
+    if not cookie_header:
+        return ""
+    jar = SimpleCookie()
+    jar.load(cookie_header)
+    morsel = jar.get(CSRF_COOKIE)
+    return morsel.value if morsel else ""
 
 
 class RequestContextMiddleware:
@@ -48,7 +49,7 @@ class RequestContextMiddleware:
             return
 
         headers = _headers(scope)
-        request_id = _request_id(headers.get("x-request-id"))
+        request_id = request_id_value(headers.get("x-request-id"))
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=request_id)
         log = structlog.get_logger()
@@ -84,44 +85,45 @@ class RequestContextMiddleware:
 
 
 class CSRFMiddleware:
-    """Require X-CSRF-Token to match the CSRF cookie on unsafe methods.
-
-    GET /api/v1/auth/csrf is safe and is the call that issues the cookie.
-    """
-
     def __init__(self, app: Any) -> None:
         self.app = app
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope["type"] != "http" or scope.get("method") not in _UNSAFE:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = str(scope.get("method", "GET")).upper()
+        path = scope.get("path", "")
+        if method in _SAFE_METHODS or path in _CSRF_EXEMPT_PATHS:
             await self.app(scope, receive, send)
             return
 
         headers = _headers(scope)
-        cookies = _cookies(headers.get("cookie", ""))
-        cookie = cookies.get(CSRF_COOKIE, "")
-        header = headers.get("x-csrf-token", "")
-        if cookie and header and tokens_match(cookie, header):
-            await self.app(scope, receive, send)
+        cookie_token = _csrf_from_cookie(headers.get("cookie"))
+        header_token = headers.get("x-csrf-token", "")
+        if not cookie_token or not header_token or cookie_token != header_token:
+            payload = problem_payload(
+                ProblemError(
+                    403,
+                    "CSRF validation failed",
+                    "Missing or invalid CSRF token.",
+                    PROBLEM_CSRF,
+                ),
+                current_request_id(),
+            )
+            body = json.dumps(payload).encode("utf-8")
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 403,
+                    "headers": [
+                        (b"content-type", b"application/problem+json"),
+                        (b"content-length", str(len(body)).encode("ascii")),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
             return
 
-        from app.logging_config import current_request_id
-
-        problem = ProblemError(
-            403,
-            "Forbidden",
-            "CSRF token missing or invalid.",
-            PROBLEM_CSRF,
-        )
-        body = json.dumps(problem_payload(problem, current_request_id())).encode("utf-8")
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 403,
-                "headers": [
-                    (b"content-type", b"application/problem+json"),
-                    (b"content-length", str(len(body)).encode("ascii")),
-                ],
-            }
-        )
-        await send({"type": "http.response.body", "body": body})
+        await self.app(scope, receive, send)

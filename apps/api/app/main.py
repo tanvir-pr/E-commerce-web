@@ -11,14 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
-from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.health import router as health_router
 from app.logging_config import current_request_id, setup_logging
 from app.middleware import CSRFMiddleware, RequestContextMiddleware
 from app.problems import PROBLEM_INTERNAL, PROBLEM_VALIDATION, ProblemError, problem_payload
-from app.security.totp import ensure_totp_key
 from app.session import engine
 from app.users.router import router as users_router
 
@@ -41,16 +39,9 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        ensure_totp_key(settings.totp_encryption_key)
         app.state.redis = Redis.from_url(settings.redis_url, decode_responses=True)
         app.state.arq = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-        log.info(
-            "app_started",
-            app_env=settings.app_env,
-            breach_check=settings.breach_check,
-            phone_registration_enabled=settings.phone_registration_enabled,
-            sms_provider=settings.sms_provider,
-        )
+        log.info("app_started", app_env=settings.app_env)
         yield
         await app.state.arq.close()
         await app.state.redis.aclose()
@@ -96,7 +87,6 @@ def create_app() -> FastAPI:
             media_type="application/problem+json",
         )
 
-    # Last added runs first: CORS, then request id, then CSRF.
     app.add_middleware(CSRFMiddleware)
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(
@@ -104,13 +94,12 @@ def create_app() -> FastAPI:
         allow_origins=[settings.cors_origin],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-CSRF-Token", "X-Request-ID", "Accept"],
+        allow_headers=["Accept", "Content-Type", "X-Request-ID", "X-CSRF-Token"],
     )
 
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
-    app.include_router(admin_router, prefix="/api/v1")
     return app
 
 

@@ -12,8 +12,11 @@ x-api: &api
     REDIS_URL: redis://redis:6379/0
     SMTP_HOST: mailpit
     SMTP_PORT: "1025"
-    PUBLIC_WEB_URL: http://localhost:3000
-    CORS_ORIGIN: http://localhost:3000
+    SMTP_FROM: noreply@example.com
+    PUBLIC_WEB_URL: http://localhost:3001
+    CORS_ORIGIN: http://localhost:3001
+    JWT_SECRET: local-dev-only-change-me
+    BREACH_CHECK: stub
   restart: unless-stopped
 
 services:
@@ -24,7 +27,8 @@ services:
       POSTGRES_PASSWORD: store
       POSTGRES_DB: store
     ports:
-      - "5432:5432"
+      # Host 5433 avoids clashing with other local Postgres on 5432.
+      - "5433:5432"
     volumes:
       - store_pg:/var/lib/postgresql/data
     healthcheck:
@@ -75,7 +79,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - "3000:3000"
+      # Host 3001 if another app already owns 3000.
+      - "3001:3000"
     environment:
       API_INTERNAL_URL: http://api:8000
       API_URL: http://api:8000

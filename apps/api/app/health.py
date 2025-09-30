@@ -10,7 +10,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.router import get_redis
+from app.deps import get_redis
 from app.session import get_session
 
 router = APIRouter(tags=["health"])

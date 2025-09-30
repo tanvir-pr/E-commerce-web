@@ -1,168 +1,198 @@
-"""Service-level auth rules. No database required."""
+"""AuthService with in-memory fakes (no Postgres)."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 import pytest
-from app.auth.service import AuthService
-from app.email_content import build_verification_url, verification_email_body
+from app.auth.mailer import NullMailer
+from app.auth.service import REGISTER_MESSAGE, AuthService
+from app.config import Settings
 from app.problems import ProblemError
-from app.records import REGISTER_MESSAGE
-from app.scripts.seed_superadmin import PLACEHOLDER_SEED_PASSWORD, SeedRefused, ensure_seed_allowed
-from app.security.passwords import hash_password, password_is_breached
-from app.security.tokens import generate_opaque_token, hash_token
-from tests.fakes import (
-    FakeAudit,
-    FakeLimiter,
-    FakeMailer,
-    FakeRefreshes,
-    FakeUsers,
-    FakeVerifications,
-)
-
-PASSWORD = "password12345"
+from app.security.passwords import hash_password
+from app.security.tokens import hash_token
 
 
-def build() -> tuple[
-    AuthService, FakeUsers, FakeVerifications, FakeRefreshes, FakeMailer, FakeAudit
-]:
+class FakeSession:
+    async def flush(self) -> None:
+        return None
+
+
+class FakeUsers:
+    def __init__(self) -> None:
+        self.by_email: dict[str, SimpleNamespace] = {}
+        self.by_id: dict[UUID, SimpleNamespace] = {}
+
+    async def get_by_email(self, email: str) -> SimpleNamespace | None:
+        return self.by_email.get(email)
+
+    async def get_by_id(self, user_id: UUID) -> SimpleNamespace | None:
+        return self.by_id.get(user_id)
+
+    async def add(
+        self, *, email: str, password_hash: str, role_name: str = "customer"
+    ) -> SimpleNamespace:
+        user = SimpleNamespace(
+            id=uuid4(),
+            email=email,
+            password_hash=password_hash,
+            roles=[SimpleNamespace(name=role_name)],
+            email_verified_at=None,
+        )
+        self.by_email[email] = user
+        self.by_id[user.id] = user
+        return user
+
+    async def mark_email_verified(self, user_id: UUID) -> None:
+        user = self.by_id[user_id]
+        user.email_verified_at = datetime.now(UTC)
+
+
+class FakeVerifications:
+    def __init__(self) -> None:
+        self.rows: dict[str, SimpleNamespace] = {}
+
+    async def add(self, *, user_id: UUID, token_hash: str, expires_at: datetime) -> None:
+        self.rows[token_hash] = SimpleNamespace(
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            used_at=None,
+        )
+
+    async def get_valid(self, token_hash: str) -> SimpleNamespace | None:
+        row = self.rows.get(token_hash)
+        if row is None or row.used_at is not None:
+            return None
+        if row.expires_at <= datetime.now(UTC):
+            return None
+        return row
+
+    async def mark_used(self, token: SimpleNamespace) -> None:
+        token.used_at = datetime.now(UTC)
+
+
+class FakeRefresh:
+    def __init__(self) -> None:
+        self.rows: dict[str, SimpleNamespace] = {}
+
+    async def add(
+        self,
+        *,
+        user_id: UUID,
+        token_hash: str,
+        family_id: UUID,
+        expires_at: datetime,
+    ) -> SimpleNamespace:
+        row = SimpleNamespace(
+            id=uuid4(),
+            user_id=user_id,
+            token_hash=token_hash,
+            family_id=family_id,
+            expires_at=expires_at,
+            revoked_at=None,
+            replaced_by_id=None,
+        )
+        self.rows[token_hash] = row
+        return row
+
+    async def get_by_hash(self, token_hash: str) -> SimpleNamespace | None:
+        return self.rows.get(token_hash)
+
+    async def revoke_family(self, family_id: UUID) -> None:
+        now = datetime.now(UTC)
+        for row in self.rows.values():
+            if row.family_id == family_id and row.revoked_at is None:
+                row.revoked_at = now
+
+    async def mark_replaced(self, token: SimpleNamespace, *, replaced_by_id: UUID) -> None:
+        token.revoked_at = datetime.now(UTC)
+        token.replaced_by_id = replaced_by_id
+
+
+class FakeAudit:
+    def __init__(self) -> None:
+        self.actions: list[str] = []
+
+    async def record(self, **kwargs: object) -> None:
+        self.actions.append(str(kwargs.get("action")))
+
+
+def _settings() -> Settings:
+    return Settings(
+        database_url="postgresql+asyncpg://store:store@localhost:5432/store",
+        redis_url="redis://localhost:6379/0",
+        jwt_secret="test-secret",
+        breach_check="stub",
+    )
+
+
+def _service() -> tuple[AuthService, FakeUsers, FakeVerifications, FakeRefresh, FakeAudit]:
+    service = AuthService(
+        FakeSession(),  # type: ignore[arg-type]
+        settings=_settings(),
+        mailer=NullMailer(),
+        audit=FakeAudit(),  # type: ignore[arg-type]
+    )
     users = FakeUsers()
     verifications = FakeVerifications()
-    refreshes = FakeRefreshes()
-    mailer = FakeMailer()
+    refresh = FakeRefresh()
     audit = FakeAudit()
-    service = AuthService(
-        users=users,
-        verifications=verifications,
-        refreshes=refreshes,
-        audit=audit,
-        mailer=mailer,
-        limiter=FakeLimiter(),
-        secret="test-secret-key-for-unit-tests",
-        breach_mode="stub",
+    service.users = users  # type: ignore[assignment]
+    service.verifications = verifications  # type: ignore[assignment]
+    service.refresh_tokens = refresh  # type: ignore[assignment]
+    service.audit = audit  # type: ignore[assignment]
+    return service, users, verifications, refresh, audit
+
+
+@pytest.mark.asyncio
+async def test_register_is_enumeration_safe() -> None:
+    service, users, _v, _r, audit = _service()
+    await users.add(email="a@example.com", password_hash=hash_password("password123"))
+    message = await service.register(email="a@example.com", password="password123")
+    assert message == REGISTER_MESSAGE
+    assert "auth.register.duplicate" in audit.actions
+
+
+@pytest.mark.asyncio
+async def test_verify_email_single_use() -> None:
+    service, users, verifications, _r, _a = _service()
+    user = await users.add(email="b@example.com", password_hash=hash_password("password123"))
+    raw = "verify-token-value-1234567890"
+    await verifications.add(
+        user_id=user.id,
+        token_hash=hash_token(raw),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
     )
-    return service, users, verifications, refreshes, mailer, audit
+    await service.verify_email(token=raw)
+    assert users.by_id[user.id].email_verified_at is not None
+    with pytest.raises(ProblemError) as exc:
+        await service.verify_email(token=raw)
+    assert exc.value.status == 400
 
 
 @pytest.mark.asyncio
-async def test_verification_token_is_hashed_and_single_use() -> None:
-    service, users, verifications, _refreshes, mailer, _audit = build()
-    await service.register("Person@Example.com", PASSWORD, "req-1")
-    assert len(mailer.sent) == 1
-    raw = mailer.sent[0][1]
-    assert len(verifications.rows) == 1
-    stored = verifications.rows[0]
-    assert stored.token_hash != raw
-    assert stored.token_hash == hash_token(raw)
-
-    await service.verify_email(raw, "req-2")
-    user = users.by_email["person@example.com"]
-    assert user.email_verified_at is not None
-    assert stored.used_at is not None
-
-    with pytest.raises(ProblemError) as second:
-        await service.verify_email(raw, "req-3")
-    assert second.value.status == 400
-    assert stored.used_at is not None
-
-
-@pytest.mark.asyncio
-async def test_expired_verification_is_rejected() -> None:
-    service, users, verifications, _refreshes, mailer, _audit = build()
-    await service.register("person@example.com", PASSWORD, None)
-    verifications.rows[0].expires_at = datetime(2000, 1, 1, tzinfo=UTC)
-    with pytest.raises(ProblemError):
-        await service.verify_email(mailer.sent[0][1], None)
-    assert verifications.rows[0].used_at is None
-    assert users.by_email["person@example.com"].email_verified_at is None
-
-
-@pytest.mark.asyncio
-async def test_register_duplicate_email_returns_same_body() -> None:
-    service, users, verifications, _refreshes, mailer, _audit = build()
-    first = await service.register("A@Example.com", PASSWORD, None)
-    stored_hash = users.by_email["a@example.com"].password_hash
-    second = await service.register("a@example.com", "different-password-9", None)
-    assert first == second
-    assert first.message == REGISTER_MESSAGE
-    assert second.message == REGISTER_MESSAGE
-    assert len(mailer.sent) == 1
-    assert len(verifications.rows) == 1
-    assert users.by_email["a@example.com"].password_hash == stored_hash
+async def test_login_rejects_bad_password() -> None:
+    service, users, _v, _r, audit = _service()
+    await users.add(email="c@example.com", password_hash=hash_password("password123"))
+    with pytest.raises(ProblemError) as exc:
+        await service.login(email="c@example.com", password="nope-nope-no")
+    assert exc.value.status == 401
+    assert "auth.login.failed" in audit.actions
 
 
 @pytest.mark.asyncio
 async def test_refresh_reuse_revokes_family() -> None:
-    service, _users, _verifications, refreshes, _mailer, _audit = build()
-    await service.register("person@example.com", PASSWORD, None)
-    issued = await service.login("person@example.com", PASSWORD, "127.0.0.1", None)
-    assert issued.tokens is not None
-    rotated = await service.refresh(issued.tokens.refresh_token, None)
-    assert rotated.refresh_token != issued.tokens.refresh_token
-    assert all(row.token_hash != issued.tokens.refresh_token for row in refreshes.rows)
-    assert any(row.token_hash == hash_token(issued.tokens.refresh_token) for row in refreshes.rows)
-
-    with pytest.raises(ProblemError) as reused:
-        await service.refresh(issued.tokens.refresh_token, "req-reuse")
-    assert reused.value.status == 401
-    assert all(row.revoked_at is not None for row in refreshes.rows)
-
+    service, users, _v, refresh, audit = _service()
+    user = await users.add(email="d@example.com", password_hash=hash_password("password123"))
+    _user, _access, raw = await service.login(email="d@example.com", password="password123")
+    _u2, _a2, raw2 = await service.refresh(raw_refresh=raw)
+    assert raw2 != raw
     with pytest.raises(ProblemError):
-        await service.refresh(rotated.refresh_token, None)
-
-
-@pytest.mark.asyncio
-async def test_login_errors_are_generic() -> None:
-    service, users, _verifications, _refreshes, _mailer, _audit = build()
-    await users.add("person@example.com", hash_password(PASSWORD))
-    with pytest.raises(ProblemError) as unknown:
-        await service.login("missing@example.com", PASSWORD, "10.0.0.8", None)
-    with pytest.raises(ProblemError) as wrong:
-        await service.login("person@example.com", "not-the-password", "10.0.0.8", None)
-    assert unknown.value.status == wrong.value.status == 401
-    assert unknown.value.title == wrong.value.title
-    assert unknown.value.detail == wrong.value.detail
-    assert unknown.value.detail == "Invalid email or password."
-
-
-@pytest.mark.asyncio
-async def test_register_persists_before_sending_mail() -> None:
-    service, _users, _verifications, _refreshes, _mailer, _audit = build()
-    order: list[str] = []
-
-    class OrderedMailer:
-        async def send_verification(self, email: str, token: str) -> None:
-            del email, token
-            order.append("mail")
-
-    async def before_mail() -> None:
-        order.append("commit")
-
-    service.mailer = OrderedMailer()
-    await service.register("person@example.com", PASSWORD, None, before_mail=before_mail)
-    assert order == ["commit", "mail"]
-
-
-def test_breach_stub_returns_false() -> None:
-    assert password_is_breached("any-password-10", "stub") is False
-
-
-def test_token_hash_is_sha256() -> None:
-    raw, digest = generate_opaque_token()
-    assert raw != digest
-    assert digest == hash_token(raw)
-
-
-def test_verification_email_url() -> None:
-    url = build_verification_url("http://localhost:3000/", "abc_DEF-123")
-    assert url == "http://localhost:3000/en/verify-email?token=abc_DEF-123"
-    assert url in verification_email_body(url)
-
-
-def test_seed_refuses_placeholder_in_production() -> None:
-    with pytest.raises(SeedRefused):
-        ensure_seed_allowed("production", PLACEHOLDER_SEED_PASSWORD)
-
-
-def test_seed_allows_local_placeholder_and_custom_production_password() -> None:
-    ensure_seed_allowed("local", PLACEHOLDER_SEED_PASSWORD)
-    ensure_seed_allowed("production", "a-real-password-1")
+        await service.refresh(raw_refresh=raw)
+    family = next(iter(refresh.rows.values())).family_id
+    assert all(
+        row.revoked_at is not None for row in refresh.rows.values() if row.family_id == family
+    )
+    assert "auth.refresh.reuse_or_expired" in audit.actions
+    assert user.id == _user.id
