@@ -1,7 +1,8 @@
-"""Auth use cases: register, verify, login, refresh, logout."""
+"""Auth use cases: register, verify, login, TOTP, refresh, logout."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,16 +15,44 @@ from app.config import Settings
 from app.models.user import User
 from app.problems import (
     PROBLEM_CREDENTIALS,
+    PROBLEM_SECOND_FACTOR,
     PROBLEM_SESSION,
     PROBLEM_VERIFY,
     DuplicateEmailError,
     ProblemError,
 )
+from app.rbac import requires_totp
 from app.security.passwords import hash_password, validate_password_policy, verify_password
+from app.security.pending import create_pending_token, decode_pending_token
 from app.security.tokens import create_access_token, generate_opaque_token, hash_token
+from app.security.totp import (
+    decrypt_totp_secret,
+    encrypt_totp_secret,
+    new_totp_secret,
+    provisioning_uri,
+    verify_totp_code,
+)
+from app.staff.repository import RecoveryCodeRepository
 from app.users.repository import UserRepository
 
 REGISTER_MESSAGE = "If that email can be used, we sent a verification link."
+LoginNext = Literal["session", "enroll", "challenge"]
+
+
+@dataclass
+class LoginResult:
+    next: LoginNext
+    user: User | None = None
+    access: str | None = None
+    refresh: str | None = None
+    pending_token: str | None = None
+
+
+@dataclass
+class TotpSetupResult:
+    secret: str
+    otpauth_url: str
+    qr_svg: str
 
 
 class AuthService:
@@ -41,6 +70,7 @@ class AuthService:
         self.users = UserRepository(session)
         self.verifications = VerificationRepository(session)
         self.refresh_tokens = RefreshRepository(session)
+        self.recovery_codes = RecoveryCodeRepository(session)
         self.audit = audit or AuditService(session)
 
     async def register(
@@ -126,7 +156,7 @@ class AuthService:
         password: str,
         ip: str | None = None,
         user_agent: str | None = None,
-    ) -> tuple[User, str, str]:
+    ) -> LoginResult:
         normalized = email.strip().lower()
         user = await self.users.get_by_email(normalized)
         if user is None or not verify_password(password, user.password_hash):
@@ -144,6 +174,29 @@ class AuthService:
                 PROBLEM_CREDENTIALS,
             )
 
+        if requires_totp(user):
+            if user.totp_confirmed_at is None:
+                pending = create_pending_token(user_id=user.id, purpose="enroll")
+                await self.audit.record(
+                    action="auth.login.enroll_required",
+                    actor_user_id=user.id,
+                    subject_type="user",
+                    subject_id=str(user.id),
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+                return LoginResult(next="enroll", pending_token=pending)
+            pending = create_pending_token(user_id=user.id, purpose="challenge")
+            await self.audit.record(
+                action="auth.login.challenge_required",
+                actor_user_id=user.id,
+                subject_type="user",
+                subject_id=str(user.id),
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return LoginResult(next="challenge", pending_token=pending)
+
         access, refresh = await self._issue_session(user)
         await self.audit.record(
             action="auth.login",
@@ -152,6 +205,116 @@ class AuthService:
             subject_id=str(user.id),
             ip=ip,
             user_agent=user_agent,
+        )
+        return LoginResult(next="session", user=user, access=access, refresh=refresh)
+
+    async def totp_setup(self, *, enroll_token: str | None) -> TotpSetupResult:
+        user_id = decode_pending_token(enroll_token or "", purpose="enroll")
+        user = await self.users.get_by_id(user_id)
+        if user is None or not requires_totp(user):
+            raise ProblemError(
+                401,
+                "Invalid second factor step",
+                "Sign in again to continue.",
+                PROBLEM_SECOND_FACTOR,
+            )
+        if user.totp_confirmed_at is not None:
+            raise ProblemError(
+                400,
+                "Invalid second factor step",
+                "Authenticator is already enrolled.",
+                PROBLEM_SECOND_FACTOR,
+            )
+        secret = new_totp_secret()
+        await self.users.set_totp_secret(user.id, encrypt_totp_secret(secret))
+        otpauth = provisioning_uri(secret=secret, email=user.email)
+        qr_svg = _qr_svg(otpauth)
+        await self.audit.record(
+            action="auth.totp.setup",
+            actor_user_id=user.id,
+            subject_type="user",
+            subject_id=str(user.id),
+        )
+        return TotpSetupResult(secret=secret, otpauth_url=otpauth, qr_svg=qr_svg)
+
+    async def totp_confirm(
+        self, *, enroll_token: str | None, code: str
+    ) -> tuple[User, str, str, list[str]]:
+        user_id = decode_pending_token(enroll_token or "", purpose="enroll")
+        user = await self.users.get_by_id(user_id)
+        if user is None or not user.totp_secret_encrypted:
+            raise ProblemError(
+                401,
+                "Invalid second factor step",
+                "Sign in again to continue.",
+                PROBLEM_SECOND_FACTOR,
+            )
+        secret = decrypt_totp_secret(user.totp_secret_encrypted)
+        if not verify_totp_code(secret, code):
+            await self.audit.record(
+                action="auth.totp.confirm_failed",
+                actor_user_id=user.id,
+                subject_type="user",
+                subject_id=str(user.id),
+            )
+            raise ProblemError(
+                401,
+                "Invalid second factor",
+                "That authenticator code is incorrect.",
+                PROBLEM_SECOND_FACTOR,
+            )
+        await self.users.confirm_totp(user.id)
+        raw_codes = [_recovery_code() for _ in range(10)]
+        await self.recovery_codes.replace_all(user.id, raw_codes)
+        access, refresh = await self._issue_session(user)
+        await self.audit.record(
+            action="auth.totp.confirmed",
+            actor_user_id=user.id,
+            subject_type="user",
+            subject_id=str(user.id),
+        )
+        return user, access, refresh, raw_codes
+
+    async def totp_challenge(
+        self, *, challenge_token: str | None, code: str | None, recovery_code: str | None
+    ) -> tuple[User, str, str]:
+        user_id = decode_pending_token(challenge_token or "", purpose="challenge")
+        user = await self.users.get_by_id(user_id)
+        if user is None or not user.totp_secret_encrypted or user.totp_confirmed_at is None:
+            raise ProblemError(
+                401,
+                "Invalid second factor step",
+                "Sign in again to continue.",
+                PROBLEM_SECOND_FACTOR,
+            )
+
+        ok = False
+        if code:
+            secret = decrypt_totp_secret(user.totp_secret_encrypted)
+            ok = verify_totp_code(secret, code)
+        elif recovery_code:
+            ok = await self.recovery_codes.consume(user.id, recovery_code)
+        if not ok:
+            await self.audit.record(
+                action="auth.totp.challenge_failed",
+                actor_user_id=user.id,
+                subject_type="user",
+                subject_id=str(user.id),
+            )
+            raise ProblemError(
+                401,
+                "Invalid second factor",
+                "That code is incorrect.",
+                PROBLEM_SECOND_FACTOR,
+            )
+
+        access, refresh = await self._issue_session(user)
+        await self.audit.record(
+            action="auth.login",
+            actor_user_id=user.id,
+            subject_type="user",
+            subject_id=str(user.id),
+            meta={"via": "totp"},
         )
         return user, access, refresh
 
@@ -236,3 +399,14 @@ def client_meta(request_headers: dict[str, str]) -> tuple[str | None, str | None
 
 def request_header_map(headers: Any) -> dict[str, str]:
     return {key.lower(): value for key, value in headers.items()}
+
+
+def _recovery_code() -> str:
+    # 8 hex chars, lowercased for storage/compare
+    return generate_opaque_token(6).replace("-", "").replace("_", "")[:8].lower()
+
+
+def _qr_svg(otpauth_url: str) -> str:
+    import segno
+
+    return segno.make(otpauth_url).svg_inline(scale=4)

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     login_rate_limit_window_seconds: int = 600
     seed_superadmin_email: str = "owner@example.com"
     seed_superadmin_password: str = "ChangeMeNow1"
+    # Fernet key: cryptography.fernet.Fernet.generate_key().decode()
+    totp_encryption_key: str = "_-Ya7B3qukwFBFcl2y52RF4qvs52ThkeoxVKWZ9Jnq8="
+    pending_auth_ttl_seconds: int = 600
+    totp_issuer: str = "Store"
 
 
 @lru_cache

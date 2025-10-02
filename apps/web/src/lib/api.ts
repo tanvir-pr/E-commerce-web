@@ -9,6 +9,8 @@ export type Me = {
   email: string;
   email_verified_at: string | null;
   roles: string[];
+  permissions: string[];
+  totp_enabled: boolean;
 };
 
 export async function fetchHealth(): Promise<Health | null> {
@@ -62,6 +64,10 @@ export async function apiPost(path: string, payload: unknown, csrf: string): Pro
   return apiSend("POST", path, payload, csrf);
 }
 
+export async function apiPut(path: string, payload: unknown, csrf: string): Promise<Response> {
+  return apiSend("PUT", path, payload, csrf);
+}
+
 export async function fetchMe(): Promise<Me | null> {
   try {
     const response = await fetch("/api/v1/users/me", {
@@ -75,6 +81,13 @@ export async function fetchMe(): Promise<Me | null> {
   } catch {
     return null;
   }
+}
+
+export function isStaff(me: Me | null | undefined): boolean {
+  if (!me) {
+    return false;
+  }
+  return me.roles.includes("super_admin") || me.roles.includes("staff");
 }
 
 export async function readProblem(response: Response): Promise<string> {

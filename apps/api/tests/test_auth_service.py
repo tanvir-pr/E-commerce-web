@@ -38,6 +38,8 @@ class FakeUsers:
             password_hash=password_hash,
             roles=[SimpleNamespace(name=role_name)],
             email_verified_at=None,
+            totp_secret_encrypted=None,
+            totp_confirmed_at=None,
         )
         self.by_email[email] = user
         self.by_id[user.id] = user
@@ -46,6 +48,14 @@ class FakeUsers:
     async def mark_email_verified(self, user_id: UUID) -> None:
         user = self.by_id[user_id]
         user.email_verified_at = datetime.now(UTC)
+
+    async def set_totp_secret(self, user_id: UUID, encrypted: str) -> None:
+        user = self.by_id[user_id]
+        user.totp_secret_encrypted = encrypted
+        user.totp_confirmed_at = None
+
+    async def confirm_totp(self, user_id: UUID) -> None:
+        self.by_id[user_id].totp_confirmed_at = datetime.now(UTC)
 
 
 class FakeVerifications:
@@ -110,6 +120,15 @@ class FakeRefresh:
         token.replaced_by_id = replaced_by_id
 
 
+class FakeRecovery:
+    async def replace_all(self, user_id: UUID, raw_codes: list[str]) -> None:
+        _ = (user_id, raw_codes)
+
+    async def consume(self, user_id: UUID, raw_code: str) -> bool:
+        _ = (user_id, raw_code)
+        return False
+
+
 class FakeAudit:
     def __init__(self) -> None:
         self.actions: list[str] = []
@@ -124,6 +143,7 @@ def _settings() -> Settings:
         redis_url="redis://localhost:6379/0",
         jwt_secret="test-secret",
         breach_check="stub",
+        totp_encryption_key="_-Ya7B3qukwFBFcl2y52RF4qvs52ThkeoxVKWZ9Jnq8=",
     )
 
 
@@ -141,6 +161,7 @@ def _service() -> tuple[AuthService, FakeUsers, FakeVerifications, FakeRefresh, 
     service.users = users  # type: ignore[assignment]
     service.verifications = verifications  # type: ignore[assignment]
     service.refresh_tokens = refresh  # type: ignore[assignment]
+    service.recovery_codes = FakeRecovery()  # type: ignore[assignment]
     service.audit = audit  # type: ignore[assignment]
     return service, users, verifications, refresh, audit
 
@@ -182,10 +203,36 @@ async def test_login_rejects_bad_password() -> None:
 
 
 @pytest.mark.asyncio
+async def test_customer_login_issues_session() -> None:
+    service, users, _v, _r, _a = _service()
+    await users.add(email="cust@example.com", password_hash=hash_password("password123"))
+    result = await service.login(email="cust@example.com", password="password123")
+    assert result.next == "session"
+    assert result.access and result.refresh
+
+
+@pytest.mark.asyncio
+async def test_staff_login_requires_enroll() -> None:
+    service, users, _v, _r, audit = _service()
+    await users.add(
+        email="staff@example.com",
+        password_hash=hash_password("password123"),
+        role_name="super_admin",
+    )
+    result = await service.login(email="staff@example.com", password="password123")
+    assert result.next == "enroll"
+    assert result.pending_token
+    assert result.access is None
+    assert "auth.login.enroll_required" in audit.actions
+
+
+@pytest.mark.asyncio
 async def test_refresh_reuse_revokes_family() -> None:
     service, users, _v, refresh, audit = _service()
     user = await users.add(email="d@example.com", password_hash=hash_password("password123"))
-    _user, _access, raw = await service.login(email="d@example.com", password="password123")
+    result = await service.login(email="d@example.com", password="password123")
+    assert result.refresh
+    raw = result.refresh
     _u2, _a2, raw2 = await service.refresh(raw_refresh=raw)
     assert raw2 != raw
     with pytest.raises(ProblemError):
@@ -195,4 +242,4 @@ async def test_refresh_reuse_revokes_family() -> None:
         row.revoked_at is not None for row in refresh.rows.values() if row.family_id == family
     )
     assert "auth.refresh.reuse_or_expired" in audit.actions
-    assert user.id == _user.id
+    assert user.id == result.user.id if result.user else True

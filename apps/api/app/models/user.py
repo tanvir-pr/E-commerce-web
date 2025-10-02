@@ -24,6 +24,8 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(Text)
+    totp_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

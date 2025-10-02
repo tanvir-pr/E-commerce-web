@@ -17,6 +17,8 @@ x-api: &api
     CORS_ORIGIN: http://localhost:3001
     JWT_SECRET: local-dev-only-change-me
     BREACH_CHECK: stub
+    TOTP_ENCRYPTION_KEY: _-Ya7B3qukwFBFcl2y52RF4qvs52ThkeoxVKWZ9Jnq8=
+    TOTP_ISSUER: Store
   restart: unless-stopped
 
 services:

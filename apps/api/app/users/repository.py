@@ -55,3 +55,16 @@ class UserRepository:
             return
         if user.email_verified_at is None:
             user.email_verified_at = datetime.now(UTC)
+
+    async def set_totp_secret(self, user_id: UUID, encrypted: str) -> None:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return
+        user.totp_secret_encrypted = encrypted
+        user.totp_confirmed_at = None
+
+    async def confirm_totp(self, user_id: UUID) -> None:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return
+        user.totp_confirmed_at = datetime.now(UTC)

@@ -26,6 +26,7 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: ci-test-secret
       BREACH_CHECK: stub
+      TOTP_ENCRYPTION_KEY: _-Ya7B3qukwFBFcl2y52RF4qvs52ThkeoxVKWZ9Jnq8=
     defaults:
       run:
         working-directory: apps/api

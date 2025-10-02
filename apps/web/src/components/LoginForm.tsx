@@ -36,6 +36,15 @@ export function LoginForm() {
         setError(await readProblem(response));
         return;
       }
+      const body = (await response.json()) as { next?: string };
+      if (body.next === "enroll") {
+        router.push(`/${locale}/enroll`);
+        return;
+      }
+      if (body.next === "challenge") {
+        router.push(`/${locale}/login/challenge`);
+        return;
+      }
       router.push(`/${locale}`);
       router.refresh();
     } catch {

@@ -7,7 +7,8 @@
   "nav": {
     "shopName": "Store",
     "login": "Sign in",
-    "register": "Register"
+    "register": "Register",
+    "admin": "Admin"
   },
   "home": {
     "title": "Store",
@@ -42,7 +43,51 @@
     "working": "Working…",
     "invalidForm": "Check the email and password (at least 10 characters).",
     "networkError": "Could not reach the API.",
-    "missingToken": "This verification link is missing a token."
+    "missingToken": "This verification link is missing a token.",
+    "enrollTitle": "Set up authenticator",
+    "enrollLede": "Staff accounts need two-factor authentication before a session is issued.",
+    "enrollHint": "Scan the QR code in your authenticator app, then enter the 6-digit code.",
+    "enrollDone": "Authenticator confirmed. Save these recovery codes now — they are shown once.",
+    "recoveryHint": "Each recovery code works one time if you lose your authenticator.",
+    "goAdmin": "Open admin",
+    "totpCode": "Authenticator code",
+    "confirmTotp": "Confirm and continue",
+    "challengeTitle": "Two-factor check",
+    "challengeLede": "Enter a code from your authenticator, or a recovery code.",
+    "challengeHint": "Fill either the authenticator code or one recovery code.",
+    "recoveryCode": "Recovery code (optional)",
+    "verifyTotp": "Verify"
+  },
+  "admin": {
+    "shellTitle": "Admin",
+    "backStore": "Back to storefront",
+    "loading": "Loading…",
+    "forbidden": "Staff access required.",
+    "auditFailed": "Could not load audit events.",
+    "signedIn": "Signed in as {email}",
+    "totpOn": "2FA on",
+    "recentAudit": "Recent audit events",
+    "noAudit": "No audit rows yet.",
+    "comingSoon": "{section} will land in a later part.",
+    "staffHint": "Create a staff account. They must enroll TOTP on first sign-in.",
+    "staffEmail": "Staff email",
+    "staffPassword": "Temporary password",
+    "staffPermissions": "Permissions",
+    "createStaff": "Create staff",
+    "staffCreated": "Staff created ({id}).",
+    "networkError": "Could not reach the API.",
+    "working": "Working…",
+    "nav": {
+      "dashboard": "Dashboard",
+      "catalog": "Catalog",
+      "carts": "Carts",
+      "orders": "Orders",
+      "courier": "Courier",
+      "customers": "Customers",
+      "coupons": "Coupons",
+      "support": "Support",
+      "settings": "Settings"
+    }
   },
   "notFound": {
     "title": "Page not found",

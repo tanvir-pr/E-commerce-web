@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
+from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.health import router as health_router
@@ -47,7 +48,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.3.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -100,6 +101,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
+    app.include_router(admin_router, prefix="/api/v1")
     return app
 
 

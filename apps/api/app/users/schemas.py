@@ -11,3 +11,5 @@ class MeOut(BaseModel):
     email: EmailStr
     email_verified_at: datetime | None
     roles: list[str]
+    permissions: list[str]
+    totp_enabled: bool
