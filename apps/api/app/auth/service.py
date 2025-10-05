@@ -10,11 +10,17 @@ from uuid_utils import uuid7
 
 from app.audit.service import AuditService
 from app.auth.mailer import Mailer
-from app.auth.repository import RefreshRepository, VerificationRepository
+from app.auth.repository import (
+    PasswordResetRepository,
+    RefreshRepository,
+    VerificationRepository,
+)
 from app.config import Settings
 from app.models.user import User
 from app.problems import (
     PROBLEM_CREDENTIALS,
+    PROBLEM_PHONE_DISABLED,
+    PROBLEM_RESET,
     PROBLEM_SECOND_FACTOR,
     PROBLEM_SESSION,
     PROBLEM_VERIFY,
@@ -36,6 +42,7 @@ from app.staff.repository import RecoveryCodeRepository
 from app.users.repository import UserRepository
 
 REGISTER_MESSAGE = "If that email can be used, we sent a verification link."
+RESET_MESSAGE = "If that account exists, we sent a password reset link."
 LoginNext = Literal["session", "enroll", "challenge"]
 
 
@@ -69,6 +76,7 @@ class AuthService:
         self.mailer = mailer
         self.users = UserRepository(session)
         self.verifications = VerificationRepository(session)
+        self.password_resets = PasswordResetRepository(session)
         self.refresh_tokens = RefreshRepository(session)
         self.recovery_codes = RecoveryCodeRepository(session)
         self.audit = audit or AuditService(session)
@@ -159,7 +167,11 @@ class AuthService:
     ) -> LoginResult:
         normalized = email.strip().lower()
         user = await self.users.get_by_email(normalized)
-        if user is None or not verify_password(password, user.password_hash):
+        if (
+            user is None
+            or user.deleted_at is not None
+            or not verify_password(password, user.password_hash)
+        ):
             await self.audit.record(
                 action="auth.login.failed",
                 subject_type="email",
@@ -197,7 +209,7 @@ class AuthService:
             )
             return LoginResult(next="challenge", pending_token=pending)
 
-        access, refresh = await self._issue_session(user)
+        access, refresh = await self._issue_session(user, ip=ip, user_agent=user_agent)
         await self.audit.record(
             action="auth.login",
             actor_user_id=user.id,
@@ -276,7 +288,13 @@ class AuthService:
         return user, access, refresh, raw_codes
 
     async def totp_challenge(
-        self, *, challenge_token: str | None, code: str | None, recovery_code: str | None
+        self,
+        *,
+        challenge_token: str | None,
+        code: str | None,
+        recovery_code: str | None,
+        ip: str | None = None,
+        user_agent: str | None = None,
     ) -> tuple[User, str, str]:
         user_id = decode_pending_token(challenge_token or "", purpose="challenge")
         user = await self.users.get_by_id(user_id)
@@ -308,7 +326,7 @@ class AuthService:
                 PROBLEM_SECOND_FACTOR,
             )
 
-        access, refresh = await self._issue_session(user)
+        access, refresh = await self._issue_session(user, ip=ip, user_agent=user_agent)
         await self.audit.record(
             action="auth.login",
             actor_user_id=user.id,
@@ -318,7 +336,119 @@ class AuthService:
         )
         return user, access, refresh
 
-    async def refresh(self, *, raw_refresh: str | None) -> tuple[User, str, str]:
+    async def request_password_reset(
+        self,
+        *,
+        email: str,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> str:
+        normalized = email.strip().lower()
+        user = await self.users.get_by_email(normalized)
+        if user is not None and user.deleted_at is None:
+            raw = generate_opaque_token()
+            await self.password_resets.add(
+                user_id=user.id,
+                token_hash=hash_token(raw),
+                expires_at=datetime.now(UTC)
+                + timedelta(hours=self.settings.password_reset_ttl_hours),
+            )
+            await self.audit.record(
+                action="auth.password_reset.requested",
+                actor_user_id=user.id,
+                subject_type="user",
+                subject_id=str(user.id),
+                ip=ip,
+                user_agent=user_agent,
+            )
+            await self.session.flush()
+            await self.mailer.send_password_reset(email=normalized, token=raw)
+        else:
+            await self.audit.record(
+                action="auth.password_reset.unknown",
+                subject_type="email",
+                subject_id=normalized.split("@")[-1],
+                ip=ip,
+                user_agent=user_agent,
+            )
+        return RESET_MESSAGE
+
+    async def reset_password(
+        self,
+        *,
+        token: str,
+        password: str,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> None:
+        policy_error = validate_password_policy(password)
+        if policy_error:
+            raise ProblemError(
+                422,
+                "Validation error",
+                policy_error,
+                "https://store.local/problems/validation-error",
+                errors=[{"field": "password", "message": policy_error}],
+            )
+        row = await self.password_resets.get_valid(hash_token(token))
+        if row is None:
+            raise ProblemError(
+                400,
+                "Invalid reset token",
+                "This reset link is invalid or has expired.",
+                PROBLEM_RESET,
+            )
+        await self.password_resets.mark_used(row)
+        await self.users.set_password(row.user_id, hash_password(password))
+        await self.refresh_tokens.revoke_all_for_user(row.user_id)
+        await self.audit.record(
+            action="auth.password_reset.completed",
+            actor_user_id=row.user_id,
+            subject_type="user",
+            subject_id=str(row.user_id),
+            ip=ip,
+            user_agent=user_agent,
+        )
+
+    async def phone_start(self, *, phone: str) -> None:
+        _ = phone
+        if not self.settings.phone_registration_enabled:
+            raise ProblemError(
+                403,
+                "Phone registration disabled",
+                "Phone OTP registration is not available yet.",
+                PROBLEM_PHONE_DISABLED,
+            )
+        raise ProblemError(
+            501,
+            "Not implemented",
+            "Phone OTP is not implemented yet.",
+            PROBLEM_PHONE_DISABLED,
+        )
+
+    async def phone_confirm(self, *, phone: str, code: str) -> None:
+        _ = (phone, code)
+        if not self.settings.phone_registration_enabled:
+            raise ProblemError(
+                403,
+                "Phone registration disabled",
+                "Phone OTP registration is not available yet.",
+                PROBLEM_PHONE_DISABLED,
+            )
+        raise ProblemError(
+            501,
+            "Not implemented",
+            "Phone OTP is not implemented yet.",
+            PROBLEM_PHONE_DISABLED,
+        )
+
+    async def refresh(
+        self,
+        *,
+        raw_refresh: str | None,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[User, str, str]:
         if not raw_refresh:
             raise ProblemError(
                 401,
@@ -342,7 +472,7 @@ class AuthService:
             raise ProblemError(401, "Invalid session", "Sign in again.", PROBLEM_SESSION)
 
         user = await self.users.get_by_id(current.user_id)
-        if user is None:
+        if user is None or user.deleted_at is not None:
             await self.refresh_tokens.revoke_family(current.family_id)
             raise ProblemError(401, "Invalid session", "Sign in again.", PROBLEM_SESSION)
 
@@ -353,6 +483,8 @@ class AuthService:
             token_hash=hash_token(raw_new),
             family_id=current.family_id,
             expires_at=expires_at,
+            ip=ip or current.ip,
+            user_agent=user_agent or current.user_agent,
         )
         await self.refresh_tokens.mark_replaced(current, replaced_by_id=replacement.id)
         access = create_access_token(
@@ -374,7 +506,22 @@ class AuthService:
             subject_id=str(user_id) if user_id else None,
         )
 
-    async def _issue_session(self, user: User) -> tuple[str, str]:
+    async def logout_everywhere(self, *, user_id: UUID) -> None:
+        await self.refresh_tokens.revoke_all_for_user(user_id)
+        await self.audit.record(
+            action="auth.logout_everywhere",
+            actor_user_id=user_id,
+            subject_type="user",
+            subject_id=str(user_id),
+        )
+
+    async def _issue_session(
+        self,
+        user: User,
+        *,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[str, str]:
         family_id = UUID(str(uuid7()))
         raw_refresh = generate_opaque_token()
         expires_at = datetime.now(UTC) + timedelta(days=self.settings.refresh_token_ttl_days)
@@ -383,6 +530,8 @@ class AuthService:
             token_hash=hash_token(raw_refresh),
             family_id=family_id,
             expires_at=expires_at,
+            ip=ip,
+            user_agent=user_agent,
         )
         access = create_access_token(
             user_id=user.id,

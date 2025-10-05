@@ -68,3 +68,9 @@ class UserRepository:
         if user is None:
             return
         user.totp_confirmed_at = datetime.now(UTC)
+
+    async def set_password(self, user_id: UUID, password_hash: str) -> None:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return
+        user.password_hash = password_hash

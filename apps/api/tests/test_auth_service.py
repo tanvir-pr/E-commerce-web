@@ -6,10 +6,10 @@ from uuid import UUID, uuid4
 
 import pytest
 from app.auth.mailer import NullMailer
-from app.auth.service import REGISTER_MESSAGE, AuthService
+from app.auth.service import REGISTER_MESSAGE, RESET_MESSAGE, AuthService
 from app.config import Settings
 from app.problems import ProblemError
-from app.security.passwords import hash_password
+from app.security.passwords import hash_password, verify_password
 from app.security.tokens import hash_token
 
 
@@ -40,6 +40,7 @@ class FakeUsers:
             email_verified_at=None,
             totp_secret_encrypted=None,
             totp_confirmed_at=None,
+            deleted_at=None,
         )
         self.by_email[email] = user
         self.by_id[user.id] = user
@@ -56,6 +57,9 @@ class FakeUsers:
 
     async def confirm_totp(self, user_id: UUID) -> None:
         self.by_id[user_id].totp_confirmed_at = datetime.now(UTC)
+
+    async def set_password(self, user_id: UUID, password_hash: str) -> None:
+        self.by_id[user_id].password_hash = password_hash
 
 
 class FakeVerifications:
@@ -93,6 +97,8 @@ class FakeRefresh:
         token_hash: str,
         family_id: UUID,
         expires_at: datetime,
+        ip: str | None = None,
+        user_agent: str | None = None,
     ) -> SimpleNamespace:
         row = SimpleNamespace(
             id=uuid4(),
@@ -102,6 +108,8 @@ class FakeRefresh:
             expires_at=expires_at,
             revoked_at=None,
             replaced_by_id=None,
+            ip=ip,
+            user_agent=user_agent,
         )
         self.rows[token_hash] = row
         return row
@@ -115,9 +123,39 @@ class FakeRefresh:
             if row.family_id == family_id and row.revoked_at is None:
                 row.revoked_at = now
 
+    async def revoke_all_for_user(self, user_id: UUID) -> None:
+        now = datetime.now(UTC)
+        for row in self.rows.values():
+            if row.user_id == user_id and row.revoked_at is None:
+                row.revoked_at = now
+
     async def mark_replaced(self, token: SimpleNamespace, *, replaced_by_id: UUID) -> None:
         token.revoked_at = datetime.now(UTC)
         token.replaced_by_id = replaced_by_id
+
+
+class FakePasswordResets:
+    def __init__(self) -> None:
+        self.rows: dict[str, SimpleNamespace] = {}
+
+    async def add(self, *, user_id: UUID, token_hash: str, expires_at: datetime) -> None:
+        self.rows[token_hash] = SimpleNamespace(
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            used_at=None,
+        )
+
+    async def get_valid(self, token_hash: str) -> SimpleNamespace | None:
+        row = self.rows.get(token_hash)
+        if row is None or row.used_at is not None:
+            return None
+        if row.expires_at <= datetime.now(UTC):
+            return None
+        return row
+
+    async def mark_used(self, token: SimpleNamespace) -> None:
+        token.used_at = datetime.now(UTC)
 
 
 class FakeRecovery:
@@ -160,6 +198,7 @@ def _service() -> tuple[AuthService, FakeUsers, FakeVerifications, FakeRefresh, 
     audit = FakeAudit()
     service.users = users  # type: ignore[assignment]
     service.verifications = verifications  # type: ignore[assignment]
+    service.password_resets = FakePasswordResets()  # type: ignore[assignment]
     service.refresh_tokens = refresh  # type: ignore[assignment]
     service.recovery_codes = FakeRecovery()  # type: ignore[assignment]
     service.audit = audit  # type: ignore[assignment]
@@ -243,3 +282,43 @@ async def test_refresh_reuse_revokes_family() -> None:
     )
     assert "auth.refresh.reuse_or_expired" in audit.actions
     assert user.id == result.user.id if result.user else True
+
+
+@pytest.mark.asyncio
+async def test_password_reset_flow() -> None:
+    service, users, _v, refresh, audit = _service()
+    user = await users.add(email="reset@example.com", password_hash=hash_password("password123"))
+    login = await service.login(email="reset@example.com", password="password123")
+    assert login.refresh
+    message = await service.request_password_reset(email="reset@example.com")
+    assert message == RESET_MESSAGE
+    assert "auth.password_reset.requested" in audit.actions
+    known = "reset-token-value-1234567890ab"
+    service.password_resets.rows.clear()  # type: ignore[attr-defined]
+    await service.password_resets.add(  # type: ignore[attr-defined]
+        user_id=user.id,
+        token_hash=hash_token(known),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    await service.reset_password(token=known, password="newpassword99")
+    assert verify_password("newpassword99", users.by_id[user.id].password_hash)
+    assert all(row.revoked_at is not None for row in refresh.rows.values())
+    assert "auth.password_reset.completed" in audit.actions
+
+
+@pytest.mark.asyncio
+async def test_phone_start_disabled() -> None:
+    service, _u, _v, _r, _a = _service()
+    with pytest.raises(ProblemError) as exc:
+        await service.phone_start(phone="+8801712345678")
+    assert exc.value.status == 403
+
+
+@pytest.mark.asyncio
+async def test_deleted_user_cannot_login() -> None:
+    service, users, _v, _r, _a = _service()
+    user = await users.add(email="gone@example.com", password_hash=hash_password("password123"))
+    user.deleted_at = datetime.now(UTC)
+    with pytest.raises(ProblemError) as exc:
+        await service.login(email="gone@example.com", password="password123")
+    assert exc.value.status == 401

@@ -55,7 +55,7 @@ async def get_current_user_row(
     session: AsyncSession = Depends(get_session),
 ) -> User:
     user = await UserRepository(session).get_by_id(user_id)
-    if user is None:
+    if user is None or user.deleted_at is not None:
         raise ProblemError(
             401,
             "Unauthorized",

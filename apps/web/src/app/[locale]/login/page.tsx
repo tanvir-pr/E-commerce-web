@@ -16,6 +16,11 @@ export default async function LoginPage({
     <PageShell title={t("loginTitle")} lede={t("loginHint")}>
       <LoginForm />
       <p className="mt-lg text-sm text-muted">
+        <Link href={`/${locale}/forgot-password`} className="underline">
+          {t("forgotPassword")}
+        </Link>
+      </p>
+      <p className="mt-sm text-sm text-muted">
         <Link href={`/${locale}/register`} className="underline">
           {t("needAccount")}
         </Link>

@@ -57,3 +57,27 @@ class TotpConfirmOut(BaseModel):
 class TotpChallengeIn(BaseModel):
     code: str | None = Field(default=None, min_length=6, max_length=8)
     recovery_code: str | None = Field(default=None, min_length=6, max_length=32)
+
+
+class AuthConfigOut(BaseModel):
+    phone_registration_enabled: bool
+    skin_types: list[str]
+    skin_concerns: list[str]
+
+
+class PasswordResetRequestIn(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirmIn(BaseModel):
+    token: str = Field(min_length=20, max_length=256)
+    password: str = Field(min_length=10, max_length=128)
+
+
+class PhoneStartIn(BaseModel):
+    phone: str = Field(min_length=8, max_length=32)
+
+
+class PhoneConfirmIn(BaseModel):
+    phone: str = Field(min_length=8, max_length=32)
+    code: str = Field(min_length=4, max_length=8)

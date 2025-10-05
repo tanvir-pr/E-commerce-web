@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     totp_encryption_key: str = "_-Ya7B3qukwFBFcl2y52RF4qvs52ThkeoxVKWZ9Jnq8="
     pending_auth_ttl_seconds: int = 600
     totp_issuer: str = "Store"
+    password_reset_ttl_hours: int = 1
+    phone_registration_enabled: bool = False
+    skin_types: str = "dry,oily,combination,sensitive,acne-prone"
+    skin_concerns: str = "acne,pigmentation,aging,barrier,hydration"
 
 
 @lru_cache

@@ -11,6 +11,9 @@ export async function Header() {
           {t("shopName")}
         </Link>
         <nav className="flex items-center gap-md text-sm">
+          <Link href={`/${locale}/account`} className="text-muted hover:text-ink">
+            {t("account")}
+          </Link>
           <Link href={`/${locale}/admin`} className="text-muted hover:text-ink">
             {t("admin")}
           </Link>

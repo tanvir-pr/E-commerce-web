@@ -62,14 +62,22 @@ export function HomePanel() {
             {t("signedInAs", { email: me.email })}
             {me.email_verified_at ? ` · ${t("verified")}` : ` · ${t("notVerified")}`}
           </p>
-          <button
-            type="button"
-            onClick={() => void onLogout()}
-            disabled={signingOut}
-            className="w-fit rounded-sm border border-line px-md py-sm text-sm text-ink disabled:opacity-60"
-          >
-            {signingOut ? t("signingOut") : t("signOut")}
-          </button>
+          <div className="flex flex-wrap gap-sm">
+            <a
+              href={`/${locale}/account`}
+              className="w-fit rounded-sm border border-line px-md py-sm text-sm text-ink"
+            >
+              {t("accountLink")}
+            </a>
+            <button
+              type="button"
+              onClick={() => void onLogout()}
+              disabled={signingOut}
+              className="w-fit rounded-sm border border-line px-md py-sm text-sm text-ink disabled:opacity-60"
+            >
+              {signingOut ? t("signingOut") : t("signOut")}
+            </button>
+          </div>
         </div>
       ) : (
         <p className="text-sm text-muted">
