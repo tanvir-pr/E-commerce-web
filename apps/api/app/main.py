@@ -13,6 +13,8 @@ from redis.asyncio import Redis
 
 from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
+from app.catalog.admin_router import router as catalog_admin_router
+from app.catalog.router import router as catalog_router
 from app.config import get_settings
 from app.health import router as health_router
 from app.logging_config import current_request_id, setup_logging
@@ -48,7 +50,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.5.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -101,7 +103,9 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
+    app.include_router(catalog_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
+    app.include_router(catalog_admin_router, prefix="/api/v1")
     return app
 
 

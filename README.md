@@ -1,6 +1,6 @@
 # Store
 
-Parts 1–4 of a single-vendor skincare ecommerce site. Register, verify email, sign in, manage account (profile, addresses, sessions, password reset, export/soft-delete). Staff and the seeded owner must enroll TOTP before an admin session is issued.
+Parts 1–5 of a single-vendor skincare ecommerce site. Auth/account plus a skincare catalog API (category tree and skin-type / concern / ingredient attributes). Staff and the seeded owner must enroll TOTP before an admin session is issued.
 
 The browser talks to Next.js (host port **3001** → container 3000). Next.js proxies `/api/v1` to FastAPI. Use **http://localhost:3001**, not `127.0.0.1`. Postgres is on host port **5433**.
 
@@ -14,6 +14,7 @@ Copy-Item .env.example .env
 docker compose up --build -d
 docker compose exec api python -m alembic upgrade head
 docker compose exec api python -m app.scripts.seed_superadmin
+docker compose exec api python -m app.scripts.seed_catalog
 ```
 
 Open http://localhost:3001/en
@@ -23,6 +24,7 @@ Open http://localhost:3001/en
 - Sign in: http://localhost:3001/en/login
 - Account: http://localhost:3001/en/account
 - Forgot password: http://localhost:3001/en/forgot-password
+- Catalog: `GET /api/v1/catalog/categories`, `GET /api/v1/catalog/attributes?kind=skin_type`
 - Seeded owner: `owner@example.com` / `ChangeMeNow1` → then `/en/enroll` (authenticator) → `/en/admin`
 - API docs: http://localhost:8000/docs
 
