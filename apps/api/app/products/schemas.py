@@ -82,6 +82,21 @@ class ProductSummaryOut(BaseModel):
     published_at: datetime | None
 
 
+class ProductImageSummaryOut(BaseModel):
+    id: UUID
+    slot: str
+    alt_text: str | None
+    sort_order: int
+    width: int
+    height: int
+    thumb_webp_url: str | None = None
+    thumb_avif_url: str | None = None
+    card_webp_url: str | None = None
+    card_avif_url: str | None = None
+    full_webp_url: str | None = None
+    full_avif_url: str | None = None
+
+
 class ProductOut(BaseModel):
     id: UUID
     category_id: UUID
@@ -100,6 +115,7 @@ class ProductOut(BaseModel):
     published_at: datetime | None
     attributes: list[ProductAttributeRef]
     variants: list[VariantOut]
+    images: list[ProductImageSummaryOut] = []
 
 
 class ProductIn(BaseModel):

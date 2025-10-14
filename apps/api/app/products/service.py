@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit.service import AuditService
 from app.catalog.repository import CatalogRepository
-from app.models.product import Product, ProductVariant
+from app.config import get_settings
+from app.models.product import Product, ProductImage, ProductVariant
 from app.problems import PROBLEM_NOT_FOUND, PROBLEM_VALIDATION, ProblemError
 from app.products.constants import PRODUCT_STATUSES, ROUTINE_STEPS
 from app.products.repository import ProductRepository
 from app.products.schemas import (
     ProductAttributeRef,
+    ProductImageSummaryOut,
     ProductIn,
     ProductListOut,
     ProductOut,
@@ -280,6 +282,41 @@ def _detail(row: Product, *, active_variants_only: bool) -> ProductOut:
             for a in attrs
         ],
         variants=[_variant_out(v) for v in variants],
+        images=[
+            _image_out(img)
+            for img in sorted(
+                getattr(row, "images", None) or [],
+                key=lambda i: (i.sort_order, str(i.id)),
+            )
+        ],
+    )
+
+
+def _image_out(row: ProductImage) -> ProductImageSummaryOut:
+    base = get_settings().media_url_path.rstrip("/")
+
+    def url_for(fmt: str, size_key: str) -> str | None:
+        block = (row.derivatives or {}).get(fmt, {})
+        if not isinstance(block, dict):
+            return None
+        entry = block.get(size_key)
+        if not isinstance(entry, dict) or not entry.get("path"):
+            return None
+        return f"{base}/{str(entry['path']).replace(chr(92), '/')}"
+
+    return ProductImageSummaryOut(
+        id=row.id,
+        slot=row.slot,
+        alt_text=row.alt_text,
+        sort_order=row.sort_order,
+        width=row.width,
+        height=row.height,
+        thumb_webp_url=url_for("webp", "thumb"),
+        thumb_avif_url=url_for("avif", "thumb"),
+        card_webp_url=url_for("webp", "card"),
+        card_avif_url=url_for("avif", "card"),
+        full_webp_url=url_for("webp", "full"),
+        full_avif_url=url_for("avif", "full"),
     )
 
 

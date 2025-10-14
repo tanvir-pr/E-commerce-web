@@ -25,6 +25,7 @@ class ProductRepository:
             selectinload(Product.variants),
             selectinload(Product.attributes),
             selectinload(Product.category),
+            selectinload(Product.images),
         )
 
     async def list_products(

@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     phone_registration_enabled: bool = False
     skin_types: str = "dry,oily,combination,sensitive,acne-prone"
     skin_concerns: str = "acne,pigmentation,aging,barrier,hydration"
+    media_root: str = "/data/media"
+    media_url_path: str = "/api/v1/media"
+    media_max_upload_bytes: int = 8_388_608
+    media_thumb_max: int = 320
+    media_card_max: int = 800
+    media_full_max: int = 1600
 
 
 @lru_cache

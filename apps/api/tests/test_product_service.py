@@ -121,6 +121,7 @@ class FakeRepo:
             deleted_at=None,
             attributes=[],
             variants=[],
+            images=[],
         )
         self.products[row.id] = row
         self.by_slug[row.slug] = row.id

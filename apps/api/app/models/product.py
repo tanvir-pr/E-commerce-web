@@ -1,6 +1,7 @@
 """Products and sellable variants (prices in poisha)."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -13,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_utils import uuid7
@@ -67,6 +69,13 @@ class Product(Base):
         secondary="product_attributes",
         lazy="selectin",
     )
+    images = relationship(
+        "ProductImage",
+        back_populates="product",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        order_by="ProductImage.sort_order",
+    )
 
 
 class ProductVariant(Base):
@@ -114,3 +123,32 @@ class ProductAttribute(Base):
         ForeignKey("attributes.id", ondelete="CASCADE"),
         primary_key=True,
     )
+
+
+class ProductImage(Base):
+    """Derived WebP/AVIF assets for a product visual slot."""
+
+    __tablename__ = "product_images"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid7)
+    product_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    slot: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    alt_text: Mapped[str | None] = mapped_column(String(240))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    original_filename: Mapped[str | None] = mapped_column(String(255))
+    content_type: Mapped[str | None] = mapped_column(String(64))
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    # {"webp": {"thumb": "rel/path", ...}, "avif": {...}}
+    derivatives: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    product = relationship("Product", back_populates="images")
+

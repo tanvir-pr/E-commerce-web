@@ -1,6 +1,6 @@
 # Store
 
-Parts 1–6 of a single-vendor skincare ecommerce site. Auth/account, category/attribute catalog, and products with variants (size/shade/SPF, prices in poisha, publish + soft-delete). Staff and the seeded owner must enroll TOTP before an admin session is issued.
+Parts 1–7 of a single-vendor skincare ecommerce site. Auth/account, catalog, products/variants, and product image upload (resize, WebP/AVIF, EXIF stripped; slots: product / texture / lifestyle). Staff and the seeded owner must enroll TOTP before an admin session is issued.
 
 The browser talks to Next.js (host port **3001** → container 3000). Next.js proxies `/api/v1` to FastAPI. Use **http://localhost:3001**, not `127.0.0.1`. Postgres is on host port **5433**.
 
@@ -27,6 +27,8 @@ Open http://localhost:3001/en
 - Forgot password: http://localhost:3001/en/forgot-password
 - Catalog: `GET /api/v1/catalog/categories`, `GET /api/v1/catalog/attributes?kind=skin_type`
 - Products: `GET /api/v1/catalog/products`, `GET /api/v1/catalog/products/{slug}`
+- Images (staff): `POST /api/v1/admin/catalog/products/{id}/images` (multipart: file, slot, alt_text)
+- Media files: `/api/v1/media/products/...`
 - Seeded owner: `owner@example.com` / `ChangeMeNow1` → then `/en/enroll` (authenticator) → `/en/admin`
 - API docs: http://localhost:8000/docs
 

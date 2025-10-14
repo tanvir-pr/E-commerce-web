@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from arq.connections import RedisSettings, create_pool
@@ -9,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
 from app.admin.router import router as admin_router
@@ -18,6 +20,7 @@ from app.catalog.router import router as catalog_router
 from app.config import get_settings
 from app.health import router as health_router
 from app.logging_config import current_request_id, setup_logging
+from app.media.router import router as media_admin_router
 from app.middleware import CSRFMiddleware, RequestContextMiddleware
 from app.problems import PROBLEM_INTERNAL, PROBLEM_VALIDATION, ProblemError, problem_payload
 from app.products.admin_router import router as products_admin_router
@@ -52,7 +55,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.6.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.7.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -102,6 +105,14 @@ def create_app() -> FastAPI:
         allow_headers=["Accept", "Content-Type", "X-Request-ID", "X-CSRF-Token"],
     )
 
+    media_root = Path(settings.media_root)
+    media_root.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        settings.media_url_path.rstrip("/") or "/api/v1/media",
+        StaticFiles(directory=str(media_root)),
+        name="media",
+    )
+
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
@@ -110,6 +121,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(catalog_admin_router, prefix="/api/v1")
     app.include_router(products_admin_router, prefix="/api/v1")
+    app.include_router(media_admin_router, prefix="/api/v1")
     return app
 
 
