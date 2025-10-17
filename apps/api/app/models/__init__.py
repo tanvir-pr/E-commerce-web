@@ -3,6 +3,7 @@
 from app.models.address import Address
 from app.models.audit import AuditLog
 from app.models.catalog import Attribute, Category, CategoryAttribute
+from app.models.inventory import StockBatch, StockMovement
 from app.models.product import Product, ProductAttribute, ProductImage, ProductVariant
 from app.models.role import Role, UserRole
 from app.models.staff import RecoveryCode, StaffPermission
@@ -25,6 +26,8 @@ __all__ = [
     "RefreshToken",
     "Role",
     "StaffPermission",
+    "StockBatch",
+    "StockMovement",
     "User",
     "UserRole",
 ]
