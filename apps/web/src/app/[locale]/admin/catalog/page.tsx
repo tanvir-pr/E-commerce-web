@@ -1,6 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { AdminPlaceholder } from "@/components/AdminPlaceholder";
 import { AdminShell } from "@/components/AdminShell";
+import { CatalogAdmin } from "@/components/CatalogAdmin";
 
 export default async function AdminCatalogPage({
   params,
@@ -12,7 +12,7 @@ export default async function AdminCatalogPage({
   const t = await getTranslations("admin");
   return (
     <AdminShell title={t("nav.catalog")} active="catalog">
-      <AdminPlaceholder section={t("nav.catalog")} />
+      <CatalogAdmin />
     </AdminShell>
   );
 }

@@ -154,5 +154,15 @@ class ProductListOut(BaseModel):
     items: list[ProductSummaryOut]
 
 
+class BulkStatusIn(BaseModel):
+    product_ids: list[UUID] = Field(min_length=1, max_length=100)
+    status: ProductStatus
+
+
+class BulkStatusOut(BaseModel):
+    updated: int
+    status: ProductStatus
+
+
 class MessageOut(BaseModel):
     message: str

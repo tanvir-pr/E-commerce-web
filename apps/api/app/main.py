@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.8.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.9.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:

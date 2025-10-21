@@ -13,6 +13,8 @@ from app.problems import PROBLEM_NOT_FOUND, PROBLEM_VALIDATION, ProblemError
 from app.products.constants import PRODUCT_STATUSES, ROUTINE_STEPS
 from app.products.repository import ProductRepository
 from app.products.schemas import (
+    BulkStatusIn,
+    BulkStatusOut,
     ProductAttributeRef,
     ProductImageSummaryOut,
     ProductIn,
@@ -165,6 +167,32 @@ class ProductService:
             subject_type="product",
             subject_id=str(product_id),
         )
+
+    async def bulk_status(
+        self, body: BulkStatusIn, *, actor_user_id: UUID
+    ) -> BulkStatusOut:
+        if body.status not in PRODUCT_STATUSES:
+            raise ProblemError(
+                422, "Validation error", "Invalid status.", PROBLEM_VALIDATION
+            )
+        updated = 0
+        for product_id in body.product_ids:
+            row = await self.repo.get_by_id(product_id)
+            if row is None:
+                continue
+            row.status = body.status
+            if body.status == "published" and row.published_at is None:
+                row.published_at = datetime.now(UTC)
+            await self.repo.save(row)
+            updated += 1
+        await self.audit.record(
+            action="catalog.products_bulk_status",
+            actor_user_id=actor_user_id,
+            subject_type="product_bulk",
+            subject_id=body.status,
+            meta={"updated": updated, "requested": len(body.product_ids)},
+        )
+        return BulkStatusOut(updated=updated, status=body.status)
 
     async def add_variant(
         self, product_id: UUID, body: VariantIn, *, actor_user_id: UUID

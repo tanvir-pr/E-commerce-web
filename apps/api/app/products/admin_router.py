@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import get_current_staff_user, get_current_user_id
 from app.models.user import User
 from app.products.schemas import (
+    BulkStatusIn,
+    BulkStatusOut,
     MessageOut,
     ProductIn,
     ProductListOut,
@@ -35,6 +37,16 @@ async def admin_list_products(
     service: ProductService = Depends(get_product_service),
 ) -> ProductListOut:
     return await service.list_admin(status=status, category_id=category_id)
+
+
+@router.post("/products/bulk-status", response_model=BulkStatusOut)
+async def admin_bulk_status(
+    body: BulkStatusIn,
+    actor_id: UUID = Depends(get_current_user_id),
+    _staff: User = Depends(get_current_staff_user),
+    service: ProductService = Depends(get_product_service),
+) -> BulkStatusOut:
+    return await service.bulk_status(body, actor_user_id=actor_id)
 
 
 @router.get("/products/{product_id}", response_model=ProductOut)

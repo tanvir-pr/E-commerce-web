@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from app.problems import ProblemError
-from app.products.schemas import ProductIn, ProductPatchIn, VariantIn
+from app.products.schemas import BulkStatusIn, ProductIn, ProductPatchIn, VariantIn
 from app.products.service import ProductService
 
 
@@ -277,3 +277,24 @@ async def test_patch_sets_published_at() -> None:
     )
     assert updated.status == "published"
     assert updated.published_at is not None
+
+
+@pytest.mark.asyncio
+async def test_bulk_status_publishes() -> None:
+    service, repo, audit, category_id = _service()
+    a = await service.create(
+        ProductIn(category_id=category_id, slug="a", name="A", status="draft"),
+        actor_user_id=uuid4(),
+    )
+    b = await service.create(
+        ProductIn(category_id=category_id, slug="b", name="B", status="draft"),
+        actor_user_id=uuid4(),
+    )
+    out = await service.bulk_status(
+        BulkStatusIn(product_ids=[a.id, b.id, uuid4()], status="published"),
+        actor_user_id=uuid4(),
+    )
+    assert out.updated == 2
+    assert repo.products[a.id].status == "published"
+    assert repo.products[a.id].published_at is not None
+    assert "catalog.products_bulk_status" in audit.actions
