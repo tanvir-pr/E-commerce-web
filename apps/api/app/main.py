@@ -26,6 +26,9 @@ from app.middleware import CSRFMiddleware, RequestContextMiddleware
 from app.problems import PROBLEM_INTERNAL, PROBLEM_VALIDATION, ProblemError, problem_payload
 from app.products.admin_router import router as products_admin_router
 from app.products.router import router as products_router
+from app.search.admin_router import router as search_admin_router
+from app.search.client import MeilisearchClient
+from app.search.router import router as search_router
 from app.session import engine
 from app.users.router import router as users_router
 
@@ -50,13 +53,21 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.redis = Redis.from_url(settings.redis_url, decode_responses=True)
         app.state.arq = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+        if settings.search_enabled:
+            try:
+                client = MeilisearchClient(settings)
+                await client.ensure_index()
+                await client.configure_index()
+                log.info("search_index_ready", index=settings.meilisearch_index)
+            except Exception as exc:  # noqa: BLE001 — boot without blocking catalog
+                log.error("search_index_setup_failed", error_type=type(exc).__name__)
         log.info("app_started", app_env=settings.app_env)
         yield
         await app.state.arq.close()
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.9.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.10.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -119,11 +130,13 @@ def create_app() -> FastAPI:
     app.include_router(users_router, prefix="/api/v1")
     app.include_router(catalog_router, prefix="/api/v1")
     app.include_router(products_router, prefix="/api/v1")
+    app.include_router(search_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(catalog_admin_router, prefix="/api/v1")
     app.include_router(products_admin_router, prefix="/api/v1")
     app.include_router(media_admin_router, prefix="/api/v1")
     app.include_router(inventory_admin_router, prefix="/api/v1")
+    app.include_router(search_admin_router, prefix="/api/v1")
     return app
 
 

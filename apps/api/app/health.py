@@ -1,4 +1,4 @@
-"""Liveness of Postgres and Redis."""
+"""Liveness of Postgres, Redis, and Meilisearch."""
 
 from typing import Literal
 
@@ -10,7 +10,9 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.deps import get_redis
+from app.search.client import MeilisearchClient
 from app.session import get_session
 
 router = APIRouter(tags=["health"])
@@ -21,11 +23,13 @@ class HealthOut(BaseModel):
     status: Literal["ok", "down"]
     db: Literal["ok", "down"]
     redis: Literal["ok", "down"]
+    search: Literal["ok", "down", "disabled"]
 
 
 async def probe_health(session: AsyncSession, redis: Redis) -> HealthOut:
     db: Literal["ok", "down"] = "ok"
     cache: Literal["ok", "down"] = "ok"
+    search: Literal["ok", "down", "disabled"] = "disabled"
     try:
         await session.execute(text("SELECT 1"))
     except Exception:
@@ -36,8 +40,14 @@ async def probe_health(session: AsyncSession, redis: Redis) -> HealthOut:
     except Exception:
         log.error("health_redis_failed")
         cache = "down"
+    settings = get_settings()
+    if settings.search_enabled:
+        search = "ok" if await MeilisearchClient(settings).health() else "down"
+        if search == "down":
+            log.error("health_search_failed")
+    # Core liveness is still db + redis; search is reported but non-blocking.
     status: Literal["ok", "down"] = "ok" if db == "ok" and cache == "ok" else "down"
-    return HealthOut(status=status, db=db, redis=cache)
+    return HealthOut(status=status, db=db, redis=cache, search=search)
 
 
 @router.get("/health", response_model=HealthOut)

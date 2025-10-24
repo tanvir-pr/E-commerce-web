@@ -237,7 +237,9 @@
     "imageUploaded": "Image uploaded.",
     "imageRequired": "Choose an image file.",
     "stockSection": "Stock receipt",
-    "variant": "Variant"
+    "variant": "Variant",
+    "reindexSearch": "Rebuild search index",
+    "reindexOk": "Search index rebuilt ({count} products)."
   },
   "notFound": {
     "title": "Page not found",

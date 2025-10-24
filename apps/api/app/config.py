@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     media_thumb_max: int = 320
     media_card_max: int = 800
     media_full_max: int = 1600
+    meilisearch_url: str = "http://meilisearch:7700"
+    meilisearch_api_key: str = "store-meili-master-key"
+    meilisearch_index: str = "products"
+    search_enabled: bool = True
 
 
 @lru_cache

@@ -26,6 +26,7 @@ from app.products.schemas import (
     VariantOut,
     VariantPatchIn,
 )
+from app.search.indexer import SearchIndexer
 
 
 class ProductService:
@@ -34,6 +35,7 @@ class ProductService:
         self.repo = ProductRepository(session)
         self.catalog = CatalogRepository(session)
         self.audit = AuditService(session)
+        self.search = SearchIndexer(session)
 
     async def list_public(
         self,
@@ -125,6 +127,7 @@ class ProductService:
             subject_type="product",
             subject_id=str(saved.id),
         )
+        await self.search.upsert_product(saved.id)
         return _detail(saved, active_variants_only=False)
 
     async def patch(
@@ -156,6 +159,7 @@ class ProductService:
             subject_type="product",
             subject_id=str(saved.id),
         )
+        await self.search.upsert_product(saved.id)
         return _detail(saved, active_variants_only=False)
 
     async def soft_delete(self, product_id: UUID, *, actor_user_id: UUID) -> None:
@@ -167,6 +171,7 @@ class ProductService:
             subject_type="product",
             subject_id=str(product_id),
         )
+        await self.search.remove_product(product_id)
 
     async def bulk_status(
         self, body: BulkStatusIn, *, actor_user_id: UUID
@@ -176,6 +181,7 @@ class ProductService:
                 422, "Validation error", "Invalid status.", PROBLEM_VALIDATION
             )
         updated = 0
+        touched: list[UUID] = []
         for product_id in body.product_ids:
             row = await self.repo.get_by_id(product_id)
             if row is None:
@@ -185,6 +191,7 @@ class ProductService:
                 row.published_at = datetime.now(UTC)
             await self.repo.save(row)
             updated += 1
+            touched.append(product_id)
         await self.audit.record(
             action="catalog.products_bulk_status",
             actor_user_id=actor_user_id,
@@ -192,6 +199,8 @@ class ProductService:
             subject_id=body.status,
             meta={"updated": updated, "requested": len(body.product_ids)},
         )
+        for product_id in touched:
+            await self.search.upsert_product(product_id)
         return BulkStatusOut(updated=updated, status=body.status)
 
     async def add_variant(
@@ -205,6 +214,7 @@ class ProductService:
             subject_type="product_variant",
             subject_id=str(variant.id),
         )
+        await self.search.upsert_product(product_id)
         return _variant_out(variant)
 
     async def patch_variant(
@@ -222,6 +232,7 @@ class ProductService:
             subject_type="product_variant",
             subject_id=str(saved.id),
         )
+        await self.search.upsert_product(saved.product_id)
         return _variant_out(saved)
 
     async def delete_variant(self, variant_id: UUID, *, actor_user_id: UUID) -> None:
@@ -235,6 +246,7 @@ class ProductService:
             subject_id=str(variant_id),
             meta={"product_id": str(product_id)},
         )
+        await self.search.upsert_product(product_id)
 
     async def _add_variant(self, product_id: UUID, body: VariantIn) -> ProductVariant:
         variant = ProductVariant(

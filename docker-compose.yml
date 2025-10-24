@@ -20,6 +20,10 @@ x-api: &api
     TOTP_ENCRYPTION_KEY: _-Ya7B3qukwFBFcl2y52RF4qvs52ThkeoxVKWZ9Jnq8=
     TOTP_ISSUER: Store
     MEDIA_ROOT: /data/media
+    MEILISEARCH_URL: http://meilisearch:7700
+    MEILISEARCH_API_KEY: store-meili-master-key
+    MEILISEARCH_INDEX: products
+    SEARCH_ENABLED: "true"
   restart: unless-stopped
 
 services:
@@ -56,6 +60,26 @@ services:
       - "8025:8025"
       - "1025:1025"
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: store-meili-master-key
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - store_meili:/meili_data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --spider http://127.0.0.1:7700/health || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   api:
     <<: *api
     ports:
@@ -66,6 +90,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
 
   worker:
@@ -80,6 +106,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      meilisearch:
+        condition: service_healthy
 
   web:
     build:
@@ -98,3 +126,4 @@ services:
 volumes:
   store_pg:
   store_media:
+  store_meili:

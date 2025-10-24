@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { fetchMe, isStaff, type Me } from "@/lib/api";
+import { apiPost, fetchCsrfToken, fetchMe, isStaff, readProblem, type Me } from "@/lib/api";
 import {
   bulkProductStatus,
   createCategory,
@@ -65,27 +65,53 @@ export function CatalogAdmin() {
     Boolean(me?.roles.includes("super_admin")) ||
     Boolean(me?.permissions.includes("warehouse"));
 
+  async function onReindex() {
+    setError(null);
+    setMessage(null);
+    try {
+      const csrf = await fetchCsrfToken();
+      const response = await apiPost("/api/v1/admin/search/reindex", {}, csrf);
+      if (!response.ok) {
+        setError(await readProblem(response));
+        return;
+      }
+      const body = (await response.json()) as { indexed: number };
+      setMessage(t("reindexOk", { count: body.indexed }));
+    } catch {
+      setError(ta("networkError"));
+    }
+  }
+
   return (
     <div className="flex flex-col gap-lg">
-      <div className="flex flex-wrap gap-xs border-b border-line pb-sm">
-        {(["products", "categories", "stock"] as Tab[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => {
-              setTab(key);
-              setError(null);
-              setMessage(null);
-            }}
-            className={
-              tab === key
-                ? "rounded-sm bg-ink px-sm py-xs text-sm text-paper"
-                : "rounded-sm px-sm py-xs text-sm text-muted hover:text-ink"
-            }
-          >
-            {t(`tabs.${key}`)}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-sm border-b border-line pb-sm">
+        <div className="flex flex-wrap gap-xs">
+          {(["products", "categories", "stock"] as Tab[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setTab(key);
+                setError(null);
+                setMessage(null);
+              }}
+              className={
+                tab === key
+                  ? "rounded-sm bg-ink px-sm py-xs text-sm text-paper"
+                  : "rounded-sm px-sm py-xs text-sm text-muted hover:text-ink"
+              }
+            >
+              {t(`tabs.${key}`)}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => void onReindex()}
+          className="rounded-sm border border-line px-sm py-xs text-sm"
+        >
+          {t("reindexSearch")}
+        </button>
       </div>
       {error ? (
         <p role="alert" className="text-sm text-danger">

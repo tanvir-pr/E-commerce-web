@@ -181,6 +181,14 @@ class FakeRepo:
         product.variants = [row for row in product.variants if row.id != variant.id]
 
 
+class FakeSearch:
+    async def upsert_product(self, product_id: UUID) -> None:
+        _ = product_id
+
+    async def remove_product(self, product_id: UUID) -> None:
+        _ = product_id
+
+
 def _service() -> tuple[ProductService, FakeRepo, FakeAudit, UUID]:
     category_id = uuid4()
     category = SimpleNamespace(id=category_id, slug="serum")
@@ -190,6 +198,7 @@ def _service() -> tuple[ProductService, FakeRepo, FakeAudit, UUID]:
     service.repo = repo  # type: ignore[assignment]
     service.catalog = FakeCatalog(category_id)  # type: ignore[assignment]
     service.audit = audit  # type: ignore[assignment]
+    service.search = FakeSearch()  # type: ignore[assignment]
     return service, repo, audit, category_id
 
 

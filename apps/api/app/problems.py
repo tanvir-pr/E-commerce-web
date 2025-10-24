@@ -16,6 +16,7 @@ PROBLEM_SECOND_FACTOR = "https://store.local/problems/invalid-second-factor"
 PROBLEM_RESET = "https://store.local/problems/invalid-reset-token"
 PROBLEM_NOT_FOUND = "https://store.local/problems/not-found"
 PROBLEM_CONFLICT = "https://store.local/problems/conflict"
+PROBLEM_UNAVAILABLE = "https://store.local/problems/unavailable"
 
 
 class ProblemError(Exception):

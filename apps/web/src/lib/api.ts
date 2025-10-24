@@ -2,6 +2,7 @@ export type Health = {
   status: "ok" | "down";
   db: "ok" | "down";
   redis: "ok" | "down";
+  search?: "ok" | "down" | "disabled";
 };
 
 export type Me = {
