@@ -1,16 +1,23 @@
-import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
+import { routing } from "@/i18n/routing";
 
 export async function Header() {
   const t = await getTranslations("nav");
   const locale = await getLocale();
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-md px-md py-sm">
-        <Link href={`/${locale}`} className="text-lg font-semibold tracking-tight text-ink">
+    <header className="sticky top-0 z-20 border-b border-line/80 bg-surface/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-md px-md py-sm">
+        <Link
+          href={`/${locale}`}
+          className="font-display text-xl tracking-tight text-ink md:text-2xl"
+        >
           {t("shopName")}
         </Link>
-        <nav className="flex items-center gap-md text-sm">
+        <nav className="flex flex-wrap items-center justify-end gap-md text-sm">
+          <Link href={`/${locale}/shop`} className="text-muted hover:text-ink">
+            {t("shop")}
+          </Link>
           <Link href={`/${locale}/account`} className="text-muted hover:text-ink">
             {t("account")}
           </Link>
@@ -23,6 +30,18 @@ export async function Header() {
           <Link href={`/${locale}/register`} className="text-muted hover:text-ink">
             {t("register")}
           </Link>
+          <span className="flex gap-xs border-l border-line pl-md text-xs uppercase tracking-wide">
+            {routing.locales.map((code) => (
+              <Link
+                key={code}
+                href={`/${code}`}
+                className={code === locale ? "text-ink" : "text-muted hover:text-ink"}
+                hrefLang={code}
+              >
+                {code}
+              </Link>
+            ))}
+          </span>
         </nav>
       </div>
     </header>

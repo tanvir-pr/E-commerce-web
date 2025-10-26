@@ -1,5 +1,5 @@
 export const routing = {
-  locales: ["en"],
+  locales: ["en", "bn"],
   defaultLocale: "en",
   localePrefix: "always",
 } as const;

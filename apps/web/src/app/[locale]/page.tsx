@@ -1,14 +1,24 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
-import { HomePanel } from "@/components/HomePanel";
-import { PageShell } from "@/components/PageShell";
+import { setRequestLocale } from "next-intl/server";
+import { CategoryStrip } from "@/components/storefront/CategoryStrip";
+import { FeaturedProducts } from "@/components/storefront/FeaturedProducts";
+import { HomeHero } from "@/components/storefront/HomeHero";
+import { HomeStatus } from "@/components/storefront/HomeStatus";
+import { serverFetchCategories, serverFetchProducts } from "@/lib/catalog";
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("home");
+  const [categories, products] = await Promise.all([
+    serverFetchCategories(),
+    serverFetchProducts(),
+  ]);
+
   return (
-    <PageShell title={t("title")} lede={t("tagline")}>
-      <HomePanel />
-    </PageShell>
+    <main id="main">
+      <HomeHero locale={locale} />
+      <CategoryStrip locale={locale} categories={categories} />
+      <FeaturedProducts locale={locale} products={products} />
+      <HomeStatus />
+    </main>
   );
 }
