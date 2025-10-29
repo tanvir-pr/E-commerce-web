@@ -1,8 +1,11 @@
 """Search API schemas."""
 
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+SearchSort = Literal["relevance", "name_asc", "name_desc", "price_asc", "price_desc"]
 
 
 class FacetValueOut(BaseModel):
@@ -29,9 +32,23 @@ class SearchOut(BaseModel):
     total: int
     offset: int
     limit: int
+    sort: SearchSort = "relevance"
     processing_time_ms: int | None = None
     items: list[SearchHitOut]
     facets: dict[str, list[FacetValueOut]]
+
+
+class SuggestHitOut(BaseModel):
+    slug: str
+    name: str
+    subtitle: str | None = None
+    category_slug: str | None = None
+    from_price_poisha: int | None = None
+
+
+class SuggestOut(BaseModel):
+    query: str
+    items: list[SuggestHitOut]
 
 
 class ReindexOut(BaseModel):

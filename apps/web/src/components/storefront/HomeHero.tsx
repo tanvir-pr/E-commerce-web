@@ -33,10 +33,10 @@ export async function HomeHero({ locale }: { locale: string }) {
               {t("ctaShop")}
             </Link>
             <Link
-              href={`/${locale}/c/serum`}
+              href={`/${locale}/search`}
               className="btn-press rounded-sm border border-ink/20 bg-surface/70 px-lg py-sm text-sm font-medium text-ink backdrop-blur-sm hover:border-sage"
             >
-              {t("ctaSerum")}
+              {t("ctaSearch")}
             </Link>
           </div>
         </div>

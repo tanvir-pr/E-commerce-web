@@ -63,5 +63,36 @@ async def test_search_builds_facet_filters() -> None:
     assert 'category_slug = "serum"' in client.last_body["filter"]
     assert out.total == 1
     assert out.items[0].slug == "niacinamide-serum"
-    assert out.facets["concerns"][0].value == "acne" or out.facets["concerns"]
     assert any(f.value == "barrier" for f in out.facets["concerns"])
+
+
+@pytest.mark.asyncio
+async def test_search_price_and_sort() -> None:
+    client = FakeClient()
+    service = SearchService(
+        settings=SimpleNamespace(search_enabled=True),  # type: ignore[arg-type]
+        client=client,  # type: ignore[arg-type]
+    )
+    out = await service.search(
+        q="",
+        min_price_poisha=100000,
+        max_price_poisha=200000,
+        sort="price_asc",
+    )
+    assert client.last_body is not None
+    assert "from_price_poisha >= 100000" in client.last_body["filter"]
+    assert "from_price_poisha <= 200000" in client.last_body["filter"]
+    assert client.last_body["sort"] == ["from_price_poisha:asc"]
+    assert out.sort == "price_asc"
+
+
+@pytest.mark.asyncio
+async def test_suggest_skips_short_query() -> None:
+    client = FakeClient()
+    service = SearchService(
+        settings=SimpleNamespace(search_enabled=True),  # type: ignore[arg-type]
+        client=client,  # type: ignore[arg-type]
+    )
+    out = await service.suggest(q="n")
+    assert out.items == []
+    assert client.last_body is None

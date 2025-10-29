@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AddToBagButton } from "@/components/storefront/AddToBagButton";
 import { Reveal } from "@/components/motion/Reveal";
 import { formatBdt, type PublicProduct } from "@/lib/catalog";
+import { recordRecentlyViewed } from "@/lib/recently-viewed";
 
 export function ProductDetail({
   product,
@@ -19,6 +20,18 @@ export function ProductDetail({
     () => [...product.variants].sort((a, b) => a.sort_order - b.sort_order),
     [product.variants],
   );
+
+  useEffect(() => {
+    const prices = product.variants
+      .filter((v) => v.is_active)
+      .map((v) => v.price_poisha);
+    recordRecentlyViewed({
+      slug: product.slug,
+      name: product.name,
+      subtitle: product.subtitle,
+      from_price_poisha: prices.length ? Math.min(...prices) : null,
+    });
+  }, [product]);
   const [variantId, setVariantId] = useState(variants[0]?.id ?? "");
   const selected = variants.find((v) => v.id === variantId) ?? variants[0];
   const productImage =
