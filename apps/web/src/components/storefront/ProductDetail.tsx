@@ -137,7 +137,7 @@ export function ProductDetail({
           ) : null}
 
           <Reveal delayMs={120}>
-            <AddToBagButton disabled={!selected} />
+            <AddToBagButton variantId={selected?.id} disabled={!selected} />
           </Reveal>
 
           {product.description ? (

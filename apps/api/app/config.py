@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     meilisearch_api_key: str = "store-meili-master-key"
     meilisearch_index: str = "products"
     search_enabled: bool = True
+    cart_abandon_after_hours: int = 72
+    cart_guest_cookie_max_age_days: int = 30
+    cart_max_line_qty: int = 20
 
 
 @lru_cache

@@ -22,25 +22,27 @@ def get_redis(request: Request) -> Redis:
     return cast(Redis, request.app.state.redis)
 
 
-def get_current_user_id(request: Request) -> UUID:
+def get_optional_user_id(request: Request) -> UUID | None:
     raw = request.cookies.get(ACCESS_COOKIE)
     if not raw:
+        return None
+    try:
+        payload = decode_access_token(raw)
+        return UUID(str(payload["sub"]))
+    except (InvalidAccessToken, ValueError, KeyError):
+        return None
+
+
+def get_current_user_id(request: Request) -> UUID:
+    user_id = get_optional_user_id(request)
+    if user_id is None:
         raise ProblemError(
             401,
             "Unauthorized",
             "Sign in again.",
             PROBLEM_UNAUTHORIZED,
         )
-    try:
-        payload = decode_access_token(raw)
-        return UUID(str(payload["sub"]))
-    except (InvalidAccessToken, ValueError, KeyError) as exc:
-        raise ProblemError(
-            401,
-            "Unauthorized",
-            "Sign in again.",
-            PROBLEM_UNAUTHORIZED,
-        ) from exc
+    return user_id
 
 
 async def get_current_user(

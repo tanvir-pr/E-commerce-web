@@ -7,6 +7,7 @@ REFRESH_COOKIE = "__Host-refresh"
 CSRF_COOKIE = "__Host-csrf"
 ENROLL_COOKIE = "__Host-enroll"
 CHALLENGE_COOKIE = "__Host-challenge"
+CART_COOKIE = "__Host-cart"
 
 _COMMON = {
     "secure": True,
@@ -68,6 +69,20 @@ def set_challenge_cookie(response: Response, token: str, max_age: int) -> None:
 def clear_pending_cookies(response: Response) -> None:
     for name in (ENROLL_COOKIE, CHALLENGE_COOKIE):
         response.delete_cookie(name, path="/", secure=True, httponly=True, samesite="lax")
+
+
+def set_cart_cookie(response: Response, token: str, max_age: int) -> None:
+    response.set_cookie(
+        CART_COOKIE,
+        token,
+        max_age=max_age,
+        httponly=True,
+        **_COMMON,  # type: ignore[arg-type]
+    )
+
+
+def clear_cart_cookie(response: Response) -> None:
+    response.delete_cookie(CART_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
 
 
 def clear_session_cookies(response: Response) -> None:

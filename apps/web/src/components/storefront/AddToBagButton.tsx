@@ -1,35 +1,65 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { addToCart } from "@/lib/cart";
 
-/** Part 11 ships the press micro-motion; cart wiring lands in Part 13. */
-export function AddToBagButton({ disabled }: { disabled?: boolean }) {
-  const t = useTranslations("storefront");
-  const [note, setNote] = useState<string | null>(null);
+export function AddToBagButton({
+  variantId,
+  disabled,
+}: {
+  variantId?: string;
+  disabled?: boolean;
+}) {
+  const t = useTranslations("cart");
+  const locale = useLocale();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [added, setAdded] = useState(false);
   const [pop, setPop] = useState(false);
 
-  function onClick() {
+  async function onClick() {
+    if (!variantId) {
+      return;
+    }
+    setPending(true);
+    setError(null);
     setPop(true);
-    setNote(t("cartSoon"));
     window.setTimeout(() => setPop(false), 320);
+    try {
+      await addToCart(variantId, 1);
+      setAdded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("addFailed"));
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
     <div className="flex flex-col gap-xs">
       <button
         type="button"
-        disabled={disabled}
-        onClick={onClick}
+        disabled={disabled || !variantId || pending}
+        onClick={() => void onClick()}
         className={`btn-press rounded-sm bg-saffron px-lg py-sm text-sm font-medium text-ink disabled:opacity-50 ${
           pop ? "animate-press-pop" : ""
         }`}
       >
-        {t("addToBag")}
+        {pending ? t("adding") : t("addToBag")}
       </button>
-      {note ? (
-        <p role="status" className="text-xs text-muted">
-          {note}
+      {error ? (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      ) : null}
+      {added ? (
+        <p role="status" className="text-xs text-ok">
+          {t("added")}{" "}
+          <Link href={`/${locale}/cart`} className="underline">
+            {t("viewCart")}
+          </Link>
         </p>
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { AdminPlaceholder } from "@/components/AdminPlaceholder";
+import { AdminCarts } from "@/components/AdminCarts";
 import { AdminShell } from "@/components/AdminShell";
 
 export default async function AdminCartsPage({
@@ -12,7 +12,7 @@ export default async function AdminCartsPage({
   const t = await getTranslations("admin");
   return (
     <AdminShell title={t("nav.carts")} active="carts">
-      <AdminPlaceholder section={t("nav.carts")} />
+      <AdminCarts />
     </AdminShell>
   );
 }

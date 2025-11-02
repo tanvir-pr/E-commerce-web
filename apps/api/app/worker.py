@@ -6,7 +6,10 @@ from typing import Any
 import structlog
 from arq.connections import RedisSettings
 
+from arq import cron
+
 from app.auth.jobs import send_password_reset_email, send_verification_email
+from app.cart.jobs import mark_abandoned_carts
 from app.config import get_settings
 from app.logging_config import setup_logging
 from app.search.jobs import reindex_catalog, sync_product
@@ -31,7 +34,9 @@ class WorkerSettings:
         send_password_reset_email,
         reindex_catalog,
         sync_product,
+        mark_abandoned_carts,
     ]
+    cron_jobs = [cron(mark_abandoned_carts, hour={0, 6, 12, 18}, minute=15)]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
