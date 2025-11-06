@@ -1,8 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductTile } from "@/components/storefront/ProductTile";
 import { leafCategories, serverFetchCategories, serverFetchProducts } from "@/lib/catalog";
+import { pageMetadata } from "@/lib/seo";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "storefront" });
+  return pageMetadata({
+    locale,
+    path: "/shop",
+    title: `${t("shopTitle")} · Solum`,
+    description: t("shopLede"),
+  });
+}
 
 export default async function ShopPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

@@ -4,6 +4,58 @@
     "description": "Barrier-led skincare for Bangladesh — clean formulas, clear routines.",
     "skip": "Skip to content"
   },
+  "footer": {
+    "brand": "Solum",
+    "tagline": "Barrier-led skincare for Bangladesh.",
+    "legalNav": "Policies",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "shipping": "Shipping",
+    "returns": "Returns"
+  },
+  "legal": {
+    "updated": "Last updated: November 2026",
+    "privacy": {
+      "title": "Privacy policy",
+      "metaDescription": "How Solum collects, uses, and protects your personal data in Bangladesh.",
+      "s1Title": "What we collect",
+      "s1Body": "Account email, delivery address, phone when provided, order history, and basic device data needed to run the store. Payment card numbers never touch our servers — prepaid flows use the payment provider.",
+      "s2Title": "How we use it",
+      "s2Body": "We use your data to fulfil orders, prevent fraud, send transactional email, and improve the catalog. Marketing email only with consent. Staff access is role-based and audited.",
+      "s3Title": "Your rights",
+      "s3Body": "You can update your profile, export or delete account data from Account settings, or email privacy@example.com. We keep order records as required for tax and dispute handling."
+    },
+    "terms": {
+      "title": "Terms of use",
+      "metaDescription": "Terms for shopping on Solum — pricing, accounts, and acceptable use.",
+      "s1Title": "The store",
+      "s1Body": "Solum sells skincare to customers in Bangladesh. Prices are in BDT. Product information is provided in good faith; always patch-test and follow on-pack directions.",
+      "s2Title": "Accounts and orders",
+      "s2Body": "You are responsible for keeping login details safe. Orders are offers to buy; we may cancel for stock, fraud, or pricing errors and will notify you. Checkout and payment terms arrive with those features.",
+      "s3Title": "Acceptable use",
+      "s3Body": "Do not abuse the site, scrape beyond fair use, or attempt unauthorized access. We may suspend accounts that harm customers, staff, or systems."
+    },
+    "shipping": {
+      "title": "Shipping",
+      "metaDescription": "How Solum delivers across Bangladesh — zones, timing, and tracking.",
+      "s1Title": "Coverage",
+      "s1Body": "We ship within Bangladesh. Delivery zones and weight-based charges are configured in a later step; until then, checkout will show the applicable fee before you confirm.",
+      "s2Title": "Timing",
+      "s2Body": "Most metro orders leave the warehouse within 1–2 business days after confirmation. Outside major cities, allow extra transit time. You will receive a tracking number when the parcel ships.",
+      "s3Title": "Failed delivery",
+      "s3Body": "If a parcel cannot be delivered, we will attempt re-delivery or arrange return per courier rules. Keep your phone reachable on the delivery day."
+    },
+    "returns": {
+      "title": "Returns",
+      "metaDescription": "Solum return policy for unopened skincare products.",
+      "s1Title": "Eligibility",
+      "s1Body": "Unopened products in original sealed packaging may be returned within 7 days of delivery. Opened or used skincare cannot be returned for hygiene reasons, except for a verified defective or wrong item.",
+      "s2Title": "How to start",
+      "s2Body": "Contact support from your order page or email support@example.com with the order number and photos if relevant. Approved returns get a return slip and instructions.",
+      "s3Title": "Refunds",
+      "s3Body": "Refunds go back to the original payment method or store credit once the warehouse receives and checks the parcel. COD refunds may take longer to process."
+    }
+  },
   "nav": {
     "shopName": "Solum",
     "shop": "Shop",

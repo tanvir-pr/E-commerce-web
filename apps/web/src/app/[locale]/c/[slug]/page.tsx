@@ -1,9 +1,36 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductTile } from "@/components/storefront/ProductTile";
 import { serverFetchCategory, serverFetchProducts } from "@/lib/catalog";
+import { pageMetadata, truncate } from "@/lib/seo";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { locale, slug } = await params;
+  const t = await getTranslations({ locale, namespace: "storefront" });
+  const category = await serverFetchCategory(slug);
+  if (!category) {
+    return pageMetadata({
+      locale,
+      path: `/c/${slug}`,
+      title: `${t("shop")} · Solum`,
+      description: t("categoryFallbackLede"),
+      noIndex: true,
+    });
+  }
+  return pageMetadata({
+    locale,
+    path: `/c/${category.slug}`,
+    title: `${category.name} · Solum`,
+    description: truncate(category.description || t("categoryFallbackLede")),
+  });
+}
 
 export default async function CategoryPage({
   params,

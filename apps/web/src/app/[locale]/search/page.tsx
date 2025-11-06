@@ -1,7 +1,24 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Reveal } from "@/components/motion/Reveal";
 import { SearchPanel } from "@/components/storefront/SearchPanel";
 import type { SearchSort } from "@/lib/search";
+import { pageMetadata } from "@/lib/seo";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "search" });
+  return pageMetadata({
+    locale,
+    path: "/search",
+    title: `${t("title")} · Solum`,
+    description: t("lede"),
+  });
+}
 
 type SearchParamsBag = {
   q?: string;

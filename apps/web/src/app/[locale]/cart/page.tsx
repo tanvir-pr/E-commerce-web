@@ -1,6 +1,24 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Reveal } from "@/components/motion/Reveal";
 import { CartPanel } from "@/components/storefront/CartPanel";
+import { pageMetadata } from "@/lib/seo";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "cart" });
+  return pageMetadata({
+    locale,
+    path: "/cart",
+    title: `${t("title")} · Solum`,
+    description: t("lede"),
+    noIndex: true,
+  });
+}
 
 export default async function CartPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

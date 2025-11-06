@@ -113,12 +113,15 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        PUBLIC_WEB_URL: http://localhost:3001
     ports:
       # Host 3001 if another app already owns 3000.
       - "3001:3000"
     environment:
       API_INTERNAL_URL: http://api:8000
       API_URL: http://api:8000
+      PUBLIC_WEB_URL: http://localhost:3001
     depends_on:
       - api
     restart: unless-stopped

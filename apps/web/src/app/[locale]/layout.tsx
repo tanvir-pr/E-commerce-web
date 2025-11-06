@@ -1,10 +1,13 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fraunces, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
+import { SiteFooter } from "@/components/SiteFooter";
 import { routing } from "@/i18n/routing";
+import { siteUrl } from "@/lib/site";
 import "../globals.css";
 
 const display = Fraunces({
@@ -25,12 +28,25 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "meta" });
   return {
-    title: t("title"),
+    metadataBase: new URL(siteUrl()),
+    title: {
+      default: t("title"),
+      template: `%s · ${t("title")}`,
+    },
     description: t("description"),
+    openGraph: {
+      type: "website",
+      siteName: t("title"),
+      locale: locale === "bn" ? "bn_BD" : "en_BD",
+    },
   };
 }
 
@@ -51,7 +67,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className={`${display.variable} ${sans.variable}`}>
-      <body className="min-h-screen bg-paper font-sans text-base text-ink antialiased">
+      <body className="flex min-h-screen flex-col bg-paper font-sans text-base text-ink antialiased">
         <NextIntlClientProvider messages={messages}>
           <a
             href="#main"
@@ -60,7 +76,8 @@ export default async function LocaleLayout({
             {t("skip")}
           </a>
           <Header />
-          {children}
+          <div className="flex-1">{children}</div>
+          <SiteFooter />
         </NextIntlClientProvider>
       </body>
     </html>
