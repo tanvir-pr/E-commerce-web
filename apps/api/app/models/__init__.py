@@ -7,6 +7,7 @@ from app.models.catalog import Attribute, Category, CategoryAttribute
 from app.models.inventory import StockBatch, StockMovement
 from app.models.product import Product, ProductAttribute, ProductImage, ProductVariant
 from app.models.role import Role, UserRole
+from app.models.shipping import DeliveryWeightTier, DeliveryZone
 from app.models.staff import RecoveryCode, StaffPermission
 from app.models.token import EmailVerificationToken, PasswordResetToken, RefreshToken
 from app.models.user import User
@@ -19,6 +20,8 @@ __all__ = [
     "CartItem",
     "Category",
     "CategoryAttribute",
+    "DeliveryWeightTier",
+    "DeliveryZone",
     "EmailVerificationToken",
     "PasswordResetToken",
     "Product",
