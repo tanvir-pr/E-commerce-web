@@ -14,6 +14,8 @@ class MeOut(BaseModel):
     email: EmailStr
     display_name: str | None
     email_verified_at: datetime | None
+    phone: str | None = None
+    phone_verified_at: datetime | None = None
     roles: list[str]
     permissions: list[str]
     totp_enabled: bool

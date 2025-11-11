@@ -10,6 +10,8 @@ export type Me = {
   email: string;
   display_name: string | null;
   email_verified_at: string | null;
+  phone: string | null;
+  phone_verified_at: string | null;
   roles: string[];
   permissions: string[];
   totp_enabled: boolean;

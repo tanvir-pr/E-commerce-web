@@ -161,9 +161,12 @@ export function CartPanel() {
                 >
                   {t("continueShopping")}
                 </Link>
-                <span className="rounded-sm bg-sage px-md py-sm text-sm font-medium text-white opacity-70">
-                  {t("checkoutSoon")}
-                </span>
+                <Link
+                  href={`/${locale}/checkout`}
+                  className="rounded-sm bg-sage px-md py-sm text-sm font-medium text-white hover:bg-sage-deep"
+                >
+                  {t("checkout")}
+                </Link>
               </div>
             </div>
           </Reveal>

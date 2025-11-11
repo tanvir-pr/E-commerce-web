@@ -45,6 +45,8 @@ class UserService:
             email=user.email,
             display_name=user.display_name,
             email_verified_at=user.email_verified_at,
+            phone=user.phone,
+            phone_verified_at=user.phone_verified_at,
             roles=[role.name for role in user.roles],
             permissions=permissions,
             totp_enabled=user.totp_confirmed_at is not None,

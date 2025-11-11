@@ -19,6 +19,7 @@ from app.cart.admin_router import router as carts_admin_router
 from app.cart.router import router as cart_router
 from app.catalog.admin_router import router as catalog_admin_router
 from app.catalog.router import router as catalog_router
+from app.checkout.router import router as checkout_router
 from app.config import get_settings
 from app.health import router as health_router
 from app.inventory.router import router as inventory_admin_router
@@ -71,7 +72,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.15.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.16.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -137,6 +138,7 @@ def create_app() -> FastAPI:
     app.include_router(search_router, prefix="/api/v1")
     app.include_router(cart_router, prefix="/api/v1")
     app.include_router(shipping_router, prefix="/api/v1")
+    app.include_router(checkout_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(catalog_admin_router, prefix="/api/v1")
     app.include_router(products_admin_router, prefix="/api/v1")
