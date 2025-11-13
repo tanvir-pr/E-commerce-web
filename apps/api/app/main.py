@@ -26,6 +26,8 @@ from app.inventory.router import router as inventory_admin_router
 from app.logging_config import current_request_id, setup_logging
 from app.media.router import router as media_admin_router
 from app.middleware import CSRFMiddleware, RequestContextMiddleware
+from app.orders.admin_router import router as orders_admin_router
+from app.orders.router import router as orders_router
 from app.problems import PROBLEM_INTERNAL, PROBLEM_VALIDATION, ProblemError, problem_payload
 from app.products.admin_router import router as products_admin_router
 from app.products.router import router as products_router
@@ -72,7 +74,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.16.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.17.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -139,6 +141,7 @@ def create_app() -> FastAPI:
     app.include_router(cart_router, prefix="/api/v1")
     app.include_router(shipping_router, prefix="/api/v1")
     app.include_router(checkout_router, prefix="/api/v1")
+    app.include_router(orders_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(catalog_admin_router, prefix="/api/v1")
     app.include_router(products_admin_router, prefix="/api/v1")
@@ -147,6 +150,7 @@ def create_app() -> FastAPI:
     app.include_router(search_admin_router, prefix="/api/v1")
     app.include_router(carts_admin_router, prefix="/api/v1")
     app.include_router(shipping_admin_router, prefix="/api/v1")
+    app.include_router(orders_admin_router, prefix="/api/v1")
     return app
 
 

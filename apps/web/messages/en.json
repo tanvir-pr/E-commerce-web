@@ -61,6 +61,7 @@
     "shop": "Shop",
     "search": "Search",
     "cart": "Bag",
+    "orders": "Orders",
     "login": "Sign in",
     "register": "Register",
     "admin": "Admin",
@@ -120,10 +121,55 @@
     "freeShipping": "free",
     "total": "Total",
     "stockIssue": "stock issue",
-    "ready": "Quote looks ready for the next step.",
+    "ready": "Quote looks ready — you can place the order.",
     "notReady": "Fix stock or address issues before placing an order.",
-    "placeOrderSoon": "Place order lands in Part 17.",
-    "staffNote": "Staff accounts can still use checkout for testing."
+    "placeOrder": "Place order (COD)",
+    "placing": "Placing…",
+    "placeFailed": "Could not place the order.",
+    "placeOrderBlocked": "Resolve blockers before placing the order.",
+    "codNote": "Cash on delivery. Confirmation and payment capture come in later steps."
+  },
+  "orders": {
+    "title": "Your orders",
+    "detailTitle": "Order",
+    "lede": "Track status from payment pending through delivery.",
+    "loading": "Loading orders…",
+    "loadFailed": "Could not load orders.",
+    "signInRequired": "Sign in to see your orders.",
+    "signIn": "Sign in",
+    "empty": "No orders yet.",
+    "backList": "All orders",
+    "itemsTitle": "Items",
+    "addressTitle": "Ship to",
+    "timelineTitle": "Timeline",
+    "merchandise": "Merchandise",
+    "shipping": "Shipping",
+    "total": "Total",
+    "cancel": "Cancel order",
+    "cancelling": "Cancelling…",
+    "cancelConfirm": "Cancel this order?",
+    "cancelFailed": "Could not cancel the order.",
+    "status": {
+      "pending_payment": "Pending payment",
+      "confirmed": "Confirmed",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    }
+  },
+  "adminOrders": {
+    "loadFailed": "Could not load orders.",
+    "saveFailed": "Could not update order.",
+    "empty": "No orders in this filter.",
+    "refresh": "Refresh",
+    "view": "View",
+    "close": "Close",
+    "total": "Total",
+    "markAs": "Mark {status}",
+    "transitioned": "Moved to {status}.",
+    "filter": {
+      "all": "All"
+    }
   },
   "adminCarts": {
     "hint": "Carts with no activity for {hours} hours are marked abandoned.",

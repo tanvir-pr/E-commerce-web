@@ -1,0 +1,104 @@
+"""Order API schemas. Money fields are integer poisha."""
+
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class OrderItemOut(BaseModel):
+    id: UUID
+    variant_id: UUID
+    product_id: UUID
+    product_slug: str
+    product_name: str
+    sku: str
+    size_label: str | None
+    shade_name: str | None
+    spf: int | None
+    qty: int
+    unit_price_poisha: int
+    line_total_poisha: int
+
+
+class OrderEventOut(BaseModel):
+    id: UUID
+    from_status: str | None
+    to_status: str
+    actor_user_id: UUID | None
+    source: str
+    note: str | None
+    created_at: datetime
+
+
+class OrderAddressOut(BaseModel):
+    id: UUID | None = None
+    label: str | None = None
+    line1: str
+    line2: str | None = None
+    city: str
+    district: str | None = None
+    postal_code: str | None = None
+    country: str = "BD"
+    phone: str | None = None
+
+
+class OrderOut(BaseModel):
+    id: UUID
+    order_number: str
+    status: str
+    currency: str
+    merchandise_subtotal_poisha: int
+    shipping_poisha: int
+    total_poisha: int
+    shipping_zone_slug: str | None
+    shipping_zone_name: str | None
+    total_weight_grams: int
+    shipping_address: OrderAddressOut
+    payment_method: str | None
+    payment_status: str | None
+    placed_at: datetime
+    confirmed_at: datetime | None
+    shipped_at: datetime | None
+    delivered_at: datetime | None
+    cancelled_at: datetime | None
+    items: list[OrderItemOut]
+    events: list[OrderEventOut] = Field(default_factory=list)
+    allowed_transitions: list[str] = Field(default_factory=list)
+
+
+class OrderSummaryOut(BaseModel):
+    id: UUID
+    order_number: str
+    status: str
+    total_poisha: int
+    currency: str
+    item_count: int
+    placed_at: datetime
+    user_email: str | None = None
+
+
+class OrderListOut(BaseModel):
+    items: list[OrderSummaryOut]
+
+
+class PlaceOrderIn(BaseModel):
+    address_id: UUID | None = None
+    line1: str | None = Field(default=None, max_length=200)
+    line2: str | None = Field(default=None, max_length=200)
+    city: str | None = Field(default=None, max_length=100)
+    district: str | None = Field(default=None, max_length=100)
+    postal_code: str | None = Field(default=None, max_length=20)
+    country: str = Field(default="BD", min_length=2, max_length=2)
+    phone: str | None = Field(default=None, max_length=32)
+    label: str | None = Field(default=None, max_length=64)
+    payment_method: str | None = Field(default="cod", max_length=32)
+
+
+class TransitionIn(BaseModel):
+    to_status: str = Field(min_length=1, max_length=32)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class MessageOut(BaseModel):
+    message: str

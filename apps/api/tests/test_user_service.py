@@ -89,6 +89,8 @@ def _user() -> SimpleNamespace:
         email="me@example.com",
         display_name=None,
         email_verified_at=None,
+        phone=None,
+        phone_verified_at=None,
         roles=[SimpleNamespace(name="customer")],
         totp_confirmed_at=None,
         skin_type=None,

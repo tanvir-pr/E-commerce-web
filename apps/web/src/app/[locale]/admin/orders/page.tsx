@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { AdminPlaceholder } from "@/components/AdminPlaceholder";
+import { AdminOrders } from "@/components/AdminOrders";
 import { AdminShell } from "@/components/AdminShell";
 
 export default async function AdminOrdersPage({
@@ -12,7 +12,7 @@ export default async function AdminOrdersPage({
   const t = await getTranslations("admin");
   return (
     <AdminShell title={t("nav.orders")} active="orders">
-      <AdminPlaceholder section={t("nav.orders")} />
+      <AdminOrders />
     </AdminShell>
   );
 }

@@ -174,7 +174,10 @@ class MeilisearchClient:
             raise MeilisearchError(
                 f"search failed: {response.text}", status=response.status_code
             )
-        return response.json()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise MeilisearchError("search returned non-object JSON")
+        return payload
 
     async def _wait_task(self, task_payload: dict[str, Any]) -> None:
         task_uid = task_payload.get("taskUid") or task_payload.get("uid")

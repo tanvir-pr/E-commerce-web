@@ -162,6 +162,14 @@ class CartService:
         cart = await self.repo.require(cart.id)
         return await self._cart_out(cart), new_token
 
+    async def mark_converted(self, cart_id: UUID) -> None:
+        """Clear lines and mark the cart converted after a successful place-order."""
+        cart = await self.repo.require(cart_id)
+        await self.repo.clear_items(cart.id)
+        cart.status = "converted"
+        cart.cleared_at = datetime.now(UTC)
+        await self.repo.touch(cart)
+
     async def upsell(
         self, *, user_id: UUID | None, guest_token: str | None
     ) -> UpsellOut:

@@ -109,7 +109,7 @@ class CheckoutService:
             ready=ready,
             blockers=blockers,
             quoted_at=datetime.now(UTC),
-            place_order_available=False,
+            place_order_available=ready,
         )
 
     async def _resolve_address(

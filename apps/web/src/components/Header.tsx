@@ -24,6 +24,9 @@ export async function Header() {
           <Link href={`/${locale}/cart`} className="text-muted hover:text-ink">
             {t("cart")}
           </Link>
+          <Link href={`/${locale}/orders`} className="text-muted hover:text-ink">
+            {t("orders")}
+          </Link>
           <Link href={`/${locale}/account`} className="text-muted hover:text-ink">
             {t("account")}
           </Link>

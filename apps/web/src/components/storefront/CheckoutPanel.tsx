@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Reveal } from "@/components/motion/Reveal";
 import {
@@ -9,23 +10,25 @@ import {
   fetchAddresses,
   fetchCsrfToken,
   fetchMe,
-  isStaff,
   readProblem,
   type Address,
   type Me,
 } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
 import { fetchCheckoutQuote, type CheckoutQuote } from "@/lib/checkout";
+import { placeOrder } from "@/lib/orders";
 
 export function CheckoutPanel() {
   const t = useTranslations("checkout");
   const locale = useLocale();
+  const router = useRouter();
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState<string>("");
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [placing, setPlacing] = useState(false);
   const [line1, setLine1] = useState("");
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
@@ -91,6 +94,36 @@ export function CheckoutPanel() {
       setError(err instanceof Error ? err.message : t("quoteFailed"));
     } finally {
       setPending(false);
+    }
+  }
+
+  function quoteBody(id?: string) {
+    const selected = id ?? addressId;
+    if (selected) {
+      return { address_id: selected, payment_method: "cod" as const };
+    }
+    return {
+      line1,
+      city,
+      district: district || undefined,
+      phone: phone || undefined,
+      country: "BD",
+      payment_method: "cod" as const,
+    };
+  }
+
+  async function onPlaceOrder() {
+    if (!quote?.place_order_available) {
+      return;
+    }
+    setPlacing(true);
+    setError(null);
+    try {
+      const order = await placeOrder(quoteBody());
+      router.push(`/${locale}/orders/${order.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("placeFailed"));
+      setPlacing(false);
     }
   }
 
@@ -308,10 +341,19 @@ export function CheckoutPanel() {
               {t("notReady")}
             </p>
           )}
-          <p className="mt-sm text-sm text-muted">{t("placeOrderSoon")}</p>
-          {isStaff(me) ? (
-            <p className="mt-2xs text-xs text-muted">{t("staffNote")}</p>
-          ) : null}
+          {quote.place_order_available ? (
+            <button
+              type="button"
+              disabled={placing || pending}
+              onClick={() => void onPlaceOrder()}
+              className="mt-md rounded-sm bg-sage px-md py-sm text-sm font-medium text-white hover:bg-sage-deep disabled:opacity-60"
+            >
+              {placing ? t("placing") : t("placeOrder")}
+            </button>
+          ) : (
+            <p className="mt-sm text-sm text-muted">{t("placeOrderBlocked")}</p>
+          )}
+          <p className="mt-sm text-xs text-muted">{t("codNote")}</p>
         </Reveal>
       ) : null}
     </div>

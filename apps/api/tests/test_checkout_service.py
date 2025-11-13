@@ -173,7 +173,7 @@ async def test_quote_ready_when_stock_ok() -> None:
     )
     assert quote.ready is True
     assert quote.total_poisha == 145000 + 6000
-    assert quote.place_order_available is False
+    assert quote.place_order_available is True
     assert quote.contact.ok is True
 
 
