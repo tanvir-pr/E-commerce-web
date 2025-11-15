@@ -1,6 +1,7 @@
 """Order persistence."""
 
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -84,3 +85,17 @@ class OrderRepository:
     async def save(self, order: Order) -> Order:
         await self.session.flush()
         return await self.require(order.id)
+
+    async def list_expired_pending(self, *, now: datetime, limit: int = 100) -> list[Order]:
+        result = await self.session.execute(
+            select(Order)
+            .options(*self._options())
+            .where(
+                Order.status == "pending_payment",
+                Order.reservation_expires_at.is_not(None),
+                Order.reservation_expires_at <= now,
+            )
+            .order_by(Order.reservation_expires_at.asc())
+            .limit(limit)
+        )
+        return list(result.scalars().unique().all())

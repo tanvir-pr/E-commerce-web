@@ -149,6 +149,7 @@
     "cancelling": "Cancelling…",
     "cancelConfirm": "Cancel this order?",
     "cancelFailed": "Could not cancel the order.",
+    "reservationHold": "Stock held until {when}.",
     "status": {
       "pending_payment": "Pending payment",
       "confirmed": "Confirmed",
@@ -165,6 +166,7 @@
     "view": "View",
     "close": "Close",
     "total": "Total",
+    "reservationHold": "Stock hold until {when}.",
     "markAs": "Mark {status}",
     "transitioned": "Moved to {status}.",
     "filter": {

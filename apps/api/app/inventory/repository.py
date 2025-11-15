@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.inventory import StockBatch, StockMovement
 from app.models.product import ProductVariant
+from app.models.reservation import StockReservationAllocation
 from app.problems import PROBLEM_CONFLICT, PROBLEM_NOT_FOUND, ProblemError
 
 
@@ -38,7 +39,11 @@ class InventoryRepository:
         return row
 
     async def list_batches(
-        self, variant_id: UUID, *, include_empty: bool = False
+        self,
+        variant_id: UUID,
+        *,
+        include_empty: bool = False,
+        for_update: bool = False,
     ) -> list[StockBatch]:
         stmt = select(StockBatch).where(StockBatch.variant_id == variant_id)
         if not include_empty:
@@ -47,6 +52,8 @@ class InventoryRepository:
             nulls_last(asc(StockBatch.expires_on)),
             asc(StockBatch.received_at),
         )
+        if for_update:
+            stmt = stmt.with_for_update()
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -110,3 +117,28 @@ class InventoryRepository:
             .order_by(ProductVariant.sku.asc())
         )
         return list(result.scalars().unique().all())
+
+    async def add_allocation(
+        self, row: StockReservationAllocation
+    ) -> StockReservationAllocation:
+        self.session.add(row)
+        await self.session.flush()
+        return row
+
+    async def list_active_allocations(
+        self, order_id: UUID, *, for_update: bool = False
+    ) -> list[StockReservationAllocation]:
+        stmt = select(StockReservationAllocation).where(
+            StockReservationAllocation.order_id == order_id,
+            StockReservationAllocation.released_at.is_(None),
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def save_allocation(
+        self, row: StockReservationAllocation
+    ) -> StockReservationAllocation:
+        await self.session.flush()
+        return row

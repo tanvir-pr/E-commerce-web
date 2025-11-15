@@ -52,6 +52,7 @@ export type Order = {
   shipping_address: OrderAddress;
   payment_method: string | null;
   payment_status: string | null;
+  reservation_expires_at: string | null;
   placed_at: string;
   confirmed_at: string | null;
   shipped_at: string | null;

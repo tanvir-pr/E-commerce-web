@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     cart_abandon_after_hours: int = 72
     cart_guest_cookie_max_age_days: int = 30
     cart_max_line_qty: int = 20
+    # Part 18: hold stock after place until pay/confirm or expiry.
+    stock_reservation_ttl_minutes: int = 15
     # Shipping (Part 15). Poisha = BDT * 100. Used when a zone has no override.
     free_shipping_threshold_poisha: int = 300000
     # When a variant has no weight_grams, assume this for quote weight.

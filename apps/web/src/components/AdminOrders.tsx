@@ -194,6 +194,13 @@ export function AdminOrders() {
           <p className="mt-md text-sm font-medium text-ink">
             {t("total")} · {formatBdt(selected.total_poisha)}
           </p>
+          {selected.reservation_expires_at && selected.status === "pending_payment" ? (
+            <p className="mt-xs text-xs text-muted">
+              {t("reservationHold", {
+                when: new Date(selected.reservation_expires_at).toLocaleString(),
+              })}
+            </p>
+          ) : null}
           {selected.allowed_transitions.length > 0 ? (
             <div className="mt-md flex flex-wrap gap-xs">
               {selected.allowed_transitions.map((next) => (

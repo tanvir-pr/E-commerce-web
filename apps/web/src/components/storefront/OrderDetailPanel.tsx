@@ -102,6 +102,13 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
         <p className="mt-sm text-muted">
           {t(`status.${order.status}`)} · {new Date(order.placed_at).toLocaleString()}
         </p>
+        {order.reservation_expires_at && order.status === "pending_payment" ? (
+          <p className="mt-2xs text-sm text-muted">
+            {t("reservationHold", {
+              when: new Date(order.reservation_expires_at).toLocaleString(),
+            })}
+          </p>
+        ) : null}
       </Reveal>
 
       <Reveal>

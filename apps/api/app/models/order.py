@@ -46,7 +46,6 @@ class Order(Base):
     source_address_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String(32))
     payment_status: Mapped[str | None] = mapped_column(String(32))
-    # Part 18 hook — set when stock is reserved.
     reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

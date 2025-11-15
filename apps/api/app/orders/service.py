@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,8 @@ from app.audit.service import AuditService
 from app.cart.service import CartService
 from app.checkout.schemas import CheckoutQuoteIn
 from app.checkout.service import CheckoutService
+from app.config import Settings, get_settings
+from app.inventory.service import InventoryService
 from app.models.order import Order, OrderEvent, OrderItem
 from app.orders.constants import (
     ADMIN_LIST_FILTERS,
@@ -40,11 +42,15 @@ def _order_number() -> str:
 
 
 class OrderService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self, session: AsyncSession, settings: Settings | None = None
+    ) -> None:
         self.session = session
+        self.settings = settings or get_settings()
         self.repo = OrderRepository(session)
         self.checkout = CheckoutService(session)
         self.carts = CartService(session)
+        self.inventory = InventoryService(session)
         self.audit = AuditService(session)
 
     async def place(
@@ -135,14 +141,27 @@ class OrderService:
                 meta={"payment_method": method},
             )
         )
-        # Part 18: reserve stock here. Part 19: COD may auto-confirm.
+        order = await self.repo.require(order.id)
+        reserved = await self.inventory.reserve_for_order(
+            order, list(order.items), actor_user_id=user_id
+        )
+        if reserved:
+            order.reservation_expires_at = now + timedelta(
+                minutes=self.settings.stock_reservation_ttl_minutes
+            )
+            order = await self.repo.save(order)
+        # Part 19: COD may auto-confirm.
         await self.carts.mark_converted(quote.cart.id)
         await self.audit.record(
             action="order.placed",
             actor_user_id=user_id,
             subject_type="order",
             subject_id=str(order.id),
-            meta={"order_number": order.order_number, "total_poisha": order.total_poisha},
+            meta={
+                "order_number": order.order_number,
+                "total_poisha": order.total_poisha,
+                "reserved_units": reserved,
+            },
         )
         order = await self.repo.require(order.id)
         return self._order_out(order, actor="customer")
@@ -239,10 +258,13 @@ class OrderService:
         order.status = to_status
         if to_status == "confirmed":
             order.confirmed_at = now
+            order.reservation_expires_at = None
             if order.payment_method == "cod":
                 order.payment_status = "cod_pending"
         elif to_status == "shipped":
             order.shipped_at = now
+            order.reservation_expires_at = None
+            await self.inventory.consume_for_order(order, actor_user_id=actor_user_id)
         elif to_status == "delivered":
             order.delivered_at = now
             if order.payment_method == "cod":
@@ -250,7 +272,12 @@ class OrderService:
         elif to_status == "cancelled":
             order.cancelled_at = now
             order.payment_status = "cancelled"
-            # Part 18: release reservation here.
+            order.reservation_expires_at = None
+            await self.inventory.release_for_order(
+                order,
+                actor_user_id=actor_user_id,
+                note=note or "Order cancelled",
+            )
 
         await self.repo.add_event(
             OrderEvent(
@@ -271,6 +298,22 @@ class OrderService:
         )
         order = await self.repo.save(order)
         return self._order_out(order, actor="staff" if source == "staff" else "customer")
+
+    async def expire_reservations(self) -> int:
+        """Cancel pending_payment orders whose stock hold has expired."""
+        now = datetime.now(UTC)
+        rows = await self.repo.list_expired_pending(now=now)
+        count = 0
+        for order in rows:
+            await self._transition(
+                order,
+                to_status="cancelled",
+                actor_user_id=order.user_id,
+                source="system",
+                note="Stock reservation expired",
+            )
+            count += 1
+        return count
 
     def _summary(self, order: Order, *, include_email: bool = False) -> OrderSummaryOut:
         return OrderSummaryOut(
@@ -316,6 +359,7 @@ class OrderService:
             ),
             payment_method=order.payment_method,
             payment_status=order.payment_status,
+            reservation_expires_at=order.reservation_expires_at,
             placed_at=order.placed_at,
             confirmed_at=order.confirmed_at,
             shipped_at=order.shipped_at,

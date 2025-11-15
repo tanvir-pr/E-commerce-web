@@ -8,5 +8,7 @@ MOVEMENT_REASONS = frozenset(
         "waste",
         "recount",
         "fefo_issue",
+        "reservation",
+        "reservation_release",
     }
 )

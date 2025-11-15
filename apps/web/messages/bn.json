@@ -149,6 +149,7 @@
     "cancelling": "বাতিল হচ্ছে…",
     "cancelConfirm": "এই অর্ডার বাতিল করবেন?",
     "cancelFailed": "অর্ডার বাতিল করা যায়নি।",
+    "reservationHold": "স্টক ধরে রাখা হয়েছে {when} পর্যন্ত।",
     "status": {
       "pending_payment": "পেমেন্ট পেন্ডিং",
       "confirmed": "কনফার্মড",
@@ -165,6 +166,7 @@
     "view": "দেখুন",
     "close": "বন্ধ",
     "total": "মোট",
+    "reservationHold": "স্টক হোল্ড {when} পর্যন্ত।",
     "markAs": "{status} করুন",
     "transitioned": "{status}-এ সরানো হয়েছে।",
     "filter": {

@@ -1,4 +1,4 @@
-"""Inventory use cases: receipt, adjust, FEFO issue/preview."""
+"""Inventory use cases: receipt, adjust, FEFO issue/preview, reservations."""
 
 from datetime import UTC, datetime
 from uuid import UUID
@@ -22,6 +22,8 @@ from app.inventory.schemas import (
     VariantStockOut,
 )
 from app.models.inventory import StockBatch, StockMovement
+from app.models.order import Order, OrderItem
+from app.models.reservation import StockReservationAllocation
 from app.problems import PROBLEM_VALIDATION, ProblemError
 
 
@@ -215,12 +217,146 @@ class InventoryService:
             )
         return LowStockListOut(items=items, threshold=threshold)
 
+    async def reserve_for_order(
+        self,
+        order: Order,
+        items: list[OrderItem],
+        *,
+        actor_user_id: UUID | None,
+    ) -> int:
+        """FEFO-deduct on-hand for tracked SKUs. Returns reserved unit count.
+
+        Soft/untracked SKUs (no positive on-hand) are skipped. Partial shortfall
+        on a tracked SKU raises and rolls back with the request transaction.
+        """
+        # Lock variants in stable order to reduce deadlocks.
+        lines = sorted(items, key=lambda item: str(item.variant_id))
+        reserved_units = 0
+        for item in lines:
+            on_hand = await self.repo.qty_on_hand(item.variant_id)
+            if on_hand <= 0:
+                continue
+            plan, allocated = await self._plan_fefo(
+                item.variant_id, item.qty, for_update=True
+            )
+            if allocated < item.qty:
+                raise ProblemError(
+                    422,
+                    "Validation error",
+                    (
+                        f"Insufficient stock to reserve {item.sku}: "
+                        f"need {item.qty}, available {allocated}."
+                    ),
+                    PROBLEM_VALIDATION,
+                )
+            for slice_line in plan:
+                batch = await self.repo.require_batch(slice_line.batch_id)
+                batch.qty_on_hand -= slice_line.qty
+                await self.repo.save_batch(batch)
+                await self.repo.add_movement(
+                    StockMovement(
+                        variant_id=item.variant_id,
+                        batch_id=batch.id,
+                        qty_delta=-slice_line.qty,
+                        reason="reservation",
+                        note=f"Order {order.order_number}",
+                        actor_user_id=actor_user_id,
+                    )
+                )
+                await self.repo.add_allocation(
+                    StockReservationAllocation(
+                        order_id=order.id,
+                        order_item_id=item.id,
+                        variant_id=item.variant_id,
+                        batch_id=batch.id,
+                        qty=slice_line.qty,
+                    )
+                )
+                reserved_units += slice_line.qty
+        if reserved_units:
+            await self.audit.record(
+                action="inventory.reserved",
+                actor_user_id=actor_user_id,
+                subject_type="order",
+                subject_id=str(order.id),
+                meta={"units": reserved_units, "order_number": order.order_number},
+            )
+        return reserved_units
+
+    async def release_for_order(
+        self,
+        order: Order,
+        *,
+        actor_user_id: UUID | None,
+        note: str | None = None,
+    ) -> int:
+        """Restore on-hand for active (non-consumed) allocations. Idempotent."""
+        rows = await self.repo.list_active_allocations(order.id, for_update=True)
+        if not rows:
+            return 0
+        now = datetime.now(UTC)
+        restored = 0
+        for row in rows:
+            if not row.consumed:
+                batch = await self.repo.require_batch(row.batch_id)
+                batch.qty_on_hand += row.qty
+                await self.repo.save_batch(batch)
+                await self.repo.add_movement(
+                    StockMovement(
+                        variant_id=row.variant_id,
+                        batch_id=row.batch_id,
+                        qty_delta=row.qty,
+                        reason="reservation_release",
+                        note=note or f"Release {order.order_number}",
+                        actor_user_id=actor_user_id,
+                    )
+                )
+                restored += row.qty
+            row.released_at = now
+            await self.repo.save_allocation(row)
+        if restored:
+            await self.audit.record(
+                action="inventory.reservation_released",
+                actor_user_id=actor_user_id,
+                subject_type="order",
+                subject_id=str(order.id),
+                meta={"units": restored, "order_number": order.order_number},
+            )
+        return restored
+
+    async def consume_for_order(
+        self,
+        order: Order,
+        *,
+        actor_user_id: UUID | None,
+    ) -> int:
+        """Mark active allocations consumed (shipped) without restocking."""
+        rows = await self.repo.list_active_allocations(order.id, for_update=True)
+        if not rows:
+            return 0
+        now = datetime.now(UTC)
+        for row in rows:
+            row.consumed = True
+            row.released_at = now
+            await self.repo.save_allocation(row)
+        await self.audit.record(
+            action="inventory.reservation_consumed",
+            actor_user_id=actor_user_id,
+            subject_type="order",
+            subject_id=str(order.id),
+            meta={"units": sum(r.qty for r in rows), "order_number": order.order_number},
+        )
+        return len(rows)
+
     async def _plan_fefo(
-        self, variant_id: UUID, qty: int
+        self, variant_id: UUID, qty: int, *, for_update: bool = False
     ) -> tuple[list[FefoAllocationLine], int]:
         remaining = qty
         lines: list[FefoAllocationLine] = []
-        for batch in await self.repo.list_batches(variant_id, include_empty=False):
+        batches = await self.repo.list_batches(
+            variant_id, include_empty=False, for_update=for_update
+        )
+        for batch in batches:
             if remaining <= 0:
                 break
             take = min(batch.qty_on_hand, remaining)

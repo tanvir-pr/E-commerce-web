@@ -57,6 +57,7 @@ class OrderOut(BaseModel):
     shipping_address: OrderAddressOut
     payment_method: str | None
     payment_status: str | None
+    reservation_expires_at: datetime | None = None
     placed_at: datetime
     confirmed_at: datetime | None
     shipped_at: datetime | None

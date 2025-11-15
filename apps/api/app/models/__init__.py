@@ -7,6 +7,7 @@ from app.models.catalog import Attribute, Category, CategoryAttribute
 from app.models.inventory import StockBatch, StockMovement
 from app.models.order import Order, OrderEvent, OrderItem
 from app.models.product import Product, ProductAttribute, ProductImage, ProductVariant
+from app.models.reservation import StockReservationAllocation
 from app.models.role import Role, UserRole
 from app.models.shipping import DeliveryWeightTier, DeliveryZone
 from app.models.staff import RecoveryCode, StaffPermission
@@ -38,6 +39,7 @@ __all__ = [
     "StaffPermission",
     "StockBatch",
     "StockMovement",
+    "StockReservationAllocation",
     "User",
     "UserRole",
 ]

@@ -28,6 +28,7 @@ class FakeRepo:
         self.variant = variant
         self.batches: dict[UUID, SimpleNamespace] = {}
         self.movements: list[SimpleNamespace] = []
+        self.allocations: list[SimpleNamespace] = []
 
     async def require_variant(self, variant_id: UUID) -> SimpleNamespace:
         if variant_id != self.variant.id:
@@ -41,8 +42,13 @@ class FakeRepo:
         return row
 
     async def list_batches(
-        self, variant_id: UUID, *, include_empty: bool = False
+        self,
+        variant_id: UUID,
+        *,
+        include_empty: bool = False,
+        for_update: bool = False,
     ) -> list[SimpleNamespace]:
+        _ = for_update
         rows = [b for b in self.batches.values() if b.variant_id == variant_id]
         if not include_empty:
             rows = [b for b in rows if b.qty_on_hand > 0]
@@ -106,6 +112,33 @@ class FakeRepo:
 
     async def list_variants(self) -> list[SimpleNamespace]:
         return [self.variant]
+
+    async def add_allocation(self, row: object) -> SimpleNamespace:
+        saved = SimpleNamespace(
+            id=uuid4(),
+            order_id=row.order_id,  # type: ignore[attr-defined]
+            order_item_id=getattr(row, "order_item_id", None),
+            variant_id=row.variant_id,  # type: ignore[attr-defined]
+            batch_id=row.batch_id,  # type: ignore[attr-defined]
+            qty=int(row.qty),  # type: ignore[attr-defined]
+            released_at=None,
+            consumed=False,
+        )
+        self.allocations.append(saved)
+        return saved
+
+    async def list_active_allocations(
+        self, order_id: UUID, *, for_update: bool = False
+    ) -> list[SimpleNamespace]:
+        _ = for_update
+        return [
+            row
+            for row in self.allocations
+            if row.order_id == order_id and row.released_at is None
+        ]
+
+    async def save_allocation(self, row: SimpleNamespace) -> SimpleNamespace:
+        return row
 
 
 def _service() -> tuple[InventoryService, FakeRepo, FakeAudit, SimpleNamespace]:
@@ -210,3 +243,67 @@ async def test_fefo_issue_shortfall() -> None:
             actor_user_id=uuid4(),
         )
     assert "Insufficient stock" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_reserve_and_release_for_order() -> None:
+    service, repo, audit, variant = _service()
+    await service.receive(
+        ReceiptIn(variant_id=variant.id, qty=10, lot_code="R1"),
+        actor_user_id=uuid4(),
+    )
+    order = SimpleNamespace(id=uuid4(), order_number="SOL-R-1")
+    item = SimpleNamespace(id=uuid4(), variant_id=variant.id, sku=variant.sku, qty=4)
+    reserved = await service.reserve_for_order(order, [item], actor_user_id=uuid4())
+    assert reserved == 4
+    assert await repo.qty_on_hand(variant.id) == 6
+    assert len(repo.allocations) == 1
+    assert any(m.reason == "reservation" for m in repo.movements)
+    assert "inventory.reserved" in audit.actions
+
+    restored = await service.release_for_order(order, actor_user_id=uuid4())
+    assert restored == 4
+    assert await repo.qty_on_hand(variant.id) == 10
+    assert repo.allocations[0].released_at is not None
+    assert any(m.reason == "reservation_release" for m in repo.movements)
+
+
+@pytest.mark.asyncio
+async def test_reserve_shortfall_on_tracked_sku() -> None:
+    service, _r, _a, variant = _service()
+    await service.receive(
+        ReceiptIn(variant_id=variant.id, qty=2, lot_code="R2"),
+        actor_user_id=uuid4(),
+    )
+    order = SimpleNamespace(id=uuid4(), order_number="SOL-R-2")
+    item = SimpleNamespace(id=uuid4(), variant_id=variant.id, sku=variant.sku, qty=5)
+    with pytest.raises(ProblemError) as exc:
+        await service.reserve_for_order(order, [item], actor_user_id=uuid4())
+    assert exc.value.status == 422
+
+
+@pytest.mark.asyncio
+async def test_reserve_skips_untracked_sku() -> None:
+    service, repo, _a, variant = _service()
+    order = SimpleNamespace(id=uuid4(), order_number="SOL-R-3")
+    item = SimpleNamespace(id=uuid4(), variant_id=variant.id, sku=variant.sku, qty=2)
+    reserved = await service.reserve_for_order(order, [item], actor_user_id=uuid4())
+    assert reserved == 0
+    assert repo.allocations == []
+
+
+@pytest.mark.asyncio
+async def test_consume_does_not_restock() -> None:
+    service, repo, _a, variant = _service()
+    await service.receive(
+        ReceiptIn(variant_id=variant.id, qty=5, lot_code="C1"),
+        actor_user_id=uuid4(),
+    )
+    order = SimpleNamespace(id=uuid4(), order_number="SOL-C-1")
+    item = SimpleNamespace(id=uuid4(), variant_id=variant.id, sku=variant.sku, qty=3)
+    await service.reserve_for_order(order, [item], actor_user_id=uuid4())
+    await service.consume_for_order(order, actor_user_id=uuid4())
+    assert await repo.qty_on_hand(variant.id) == 2
+    restored = await service.release_for_order(order, actor_user_id=uuid4())
+    assert restored == 0
+    assert await repo.qty_on_hand(variant.id) == 2
