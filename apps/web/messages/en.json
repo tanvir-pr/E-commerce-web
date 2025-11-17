@@ -127,12 +127,12 @@
     "placing": "Placing…",
     "placeFailed": "Could not place the order.",
     "placeOrderBlocked": "Resolve blockers before placing the order.",
-    "codNote": "Cash on delivery. Confirmation and payment capture come in later steps."
+    "codNote": "Cash on delivery. The order confirms immediately; pay when it arrives. You can cancel until it ships."
   },
   "orders": {
     "title": "Your orders",
     "detailTitle": "Order",
-    "lede": "Track status from payment pending through delivery.",
+    "lede": "COD orders confirm right away. Cancel anytime before shipping.",
     "loading": "Loading orders…",
     "loadFailed": "Could not load orders.",
     "signInRequired": "Sign in to see your orders.",
@@ -147,9 +147,24 @@
     "total": "Total",
     "cancel": "Cancel order",
     "cancelling": "Cancelling…",
-    "cancelConfirm": "Cancel this order?",
+    "cancelConfirm": "Cancel this order? Stock will return to the shelf.",
     "cancelFailed": "Could not cancel the order.",
+    "cancelHint": "You can cancel until the order ships.",
     "reservationHold": "Stock held until {when}.",
+    "paymentTitle": "Payment",
+    "paymentMethod": {
+      "cod": "Cash on delivery",
+      "bkash": "bKash",
+      "sslcommerz": "Card / SSLCommerz"
+    },
+    "paymentStatus": {
+      "pending": "Pending",
+      "cod_pending": "Collect on delivery",
+      "collected": "Collected",
+      "paid": "Paid",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
     "status": {
       "pending_payment": "Pending payment",
       "confirmed": "Confirmed",

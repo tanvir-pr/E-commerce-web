@@ -21,6 +21,7 @@ from app.orders.constants import (
     CUSTOMER_CANCEL_STATUSES,
     ORDER_STATUSES,
     PAYMENT_METHODS,
+    STAFF_CANCEL_STATUSES,
 )
 from app.orders.repository import OrderRepository
 from app.orders.schemas import (
@@ -150,7 +151,14 @@ class OrderService:
                 minutes=self.settings.stock_reservation_ttl_minutes
             )
             order = await self.repo.save(order)
-        # Part 19: COD may auto-confirm.
+        if method == "cod" and self.settings.cod_auto_confirm:
+            await self._transition(
+                order,
+                to_status="confirmed",
+                actor_user_id=user_id,
+                source="system",
+                note="COD accepted",
+            )
         await self.carts.mark_converted(quote.cart.id)
         await self.audit.record(
             action="order.placed",
@@ -161,6 +169,8 @@ class OrderService:
                 "order_number": order.order_number,
                 "total_poisha": order.total_poisha,
                 "reserved_units": reserved,
+                "payment_method": method,
+                "cod_auto_confirmed": method == "cod" and self.settings.cod_auto_confirm,
             },
         )
         order = await self.repo.require(order.id)
@@ -244,13 +254,20 @@ class OrderService:
                 f"Cannot transition from {order.status} to {to_status}.",
                 PROBLEM_VALIDATION,
             )
-        if source == "customer" and to_status == "cancelled":
-            if order.status not in CUSTOMER_CANCEL_STATUSES:
+        if to_status == "cancelled":
+            if source == "customer" and order.status not in CUSTOMER_CANCEL_STATUSES:
                 raise ProblemError(
                     403,
                     "Forbidden",
                     "Customers cannot cancel after shipping.",
                     PROBLEM_FORBIDDEN,
+                )
+            if source == "staff" and order.status not in STAFF_CANCEL_STATUSES:
+                raise ProblemError(
+                    422,
+                    "Validation error",
+                    "Staff cannot cancel after shipping. Use returns in a later step.",
+                    PROBLEM_VALIDATION,
                 )
 
         from_status = order.status
@@ -261,6 +278,8 @@ class OrderService:
             order.reservation_expires_at = None
             if order.payment_method == "cod":
                 order.payment_status = "cod_pending"
+            elif order.payment_status in (None, "pending"):
+                order.payment_status = "pending"
         elif to_status == "shipped":
             order.shipped_at = now
             order.reservation_expires_at = None
@@ -392,7 +411,10 @@ class OrderService:
                     note=event.note,
                     created_at=event.created_at,
                 )
-                for event in sorted(order.events, key=lambda e: e.created_at)
+                for event in sorted(
+                    order.events,
+                    key=lambda e: e.created_at or datetime.min.replace(tzinfo=UTC),
+                )
             ],
             allowed_transitions=allowed,
         )

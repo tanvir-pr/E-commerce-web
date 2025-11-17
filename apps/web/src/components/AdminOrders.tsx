@@ -26,7 +26,7 @@ export function AdminOrders() {
   const to = useTranslations("orders");
   const ta = useTranslations("admin");
   const [me, setMe] = useState<Me | null | undefined>(undefined);
-  const [status, setStatus] = useState<(typeof FILTERS)[number]>("pending_payment");
+  const [status, setStatus] = useState<(typeof FILTERS)[number]>("confirmed");
   const [items, setItems] = useState<OrderSummary[]>([]);
   const [selected, setSelected] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +193,10 @@ export function AdminOrders() {
           </ul>
           <p className="mt-md text-sm font-medium text-ink">
             {t("total")} · {formatBdt(selected.total_poisha)}
+          </p>
+          <p className="mt-xs text-xs text-muted">
+            {selected.payment_method ?? "—"}
+            {selected.payment_status ? ` · ${selected.payment_status}` : ""}
           </p>
           {selected.reservation_expires_at && selected.status === "pending_payment" ? (
             <p className="mt-xs text-xs text-muted">

@@ -109,6 +109,21 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
             })}
           </p>
         ) : null}
+        {order.allowed_transitions.includes("cancelled") ? (
+          <p className="mt-2xs text-sm text-muted">{t("cancelHint")}</p>
+        ) : null}
+      </Reveal>
+
+      <Reveal>
+        <h3 className="text-sm font-semibold text-ink">{t("paymentTitle")}</h3>
+        <p className="mt-sm text-sm text-muted">
+          {order.payment_method
+            ? t(`paymentMethod.${order.payment_method}` as "paymentMethod.cod")
+            : "—"}
+          {order.payment_status
+            ? ` · ${t(`paymentStatus.${order.payment_status}` as "paymentStatus.pending")}`
+            : ""}
+        </p>
       </Reveal>
 
       <Reveal>

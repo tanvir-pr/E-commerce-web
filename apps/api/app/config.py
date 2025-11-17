@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     cart_max_line_qty: int = 20
     # Part 18: hold stock after place until pay/confirm or expiry.
     stock_reservation_ttl_minutes: int = 15
+    # Part 19: COD places move straight to confirmed (cancel still allowed until ship).
+    cod_auto_confirm: bool = True
     # Shipping (Part 15). Poisha = BDT * 100. Used when a zone has no override.
     free_shipping_threshold_poisha: int = 300000
     # When a variant has no weight_grams, assume this for quote weight.

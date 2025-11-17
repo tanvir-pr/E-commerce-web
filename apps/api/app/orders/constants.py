@@ -1,4 +1,4 @@
-"""Order statuses and allowed transitions (Part 17 core)."""
+"""Order statuses and allowed transitions."""
 
 ORDER_STATUSES = frozenset(
     {
@@ -17,10 +17,22 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "shipped": frozenset({"delivered"}),
 }
 
+# Part 19: customer + staff may cancel until the parcel ships.
 CUSTOMER_CANCEL_STATUSES = frozenset({"pending_payment", "confirmed"})
+STAFF_CANCEL_STATUSES = frozenset({"pending_payment", "confirmed"})
 
 ADMIN_LIST_FILTERS = frozenset(
     {"pending_payment", "confirmed", "shipped", "delivered", "cancelled", "all"}
 )
 
 PAYMENT_METHODS = frozenset({"cod", "bkash", "sslcommerz"})
+PAYMENT_STATUSES = frozenset(
+    {
+        "pending",
+        "cod_pending",
+        "collected",
+        "paid",
+        "cancelled",
+        "refunded",
+    }
+)

@@ -46,6 +46,11 @@ class FakeRepo:
     async def require(self, _order_id: object) -> SimpleNamespace:
         return self.order
 
+    async def require_owned(self, order_id: object, user_id: object) -> SimpleNamespace:
+        if self.order.id != order_id or self.order.user_id != user_id:
+            raise ProblemError(404, "Not found", "Order not found.", "x")
+        return self.order
+
     async def add_event(self, event: object) -> object:
         self.events.append(event)  # type: ignore[arg-type]
         return event
@@ -186,3 +191,68 @@ async def test_expire_reservations_cancels_pending() -> None:
     assert count == 1
     assert order.status == "cancelled"
     assert inventory.released == 1
+
+
+@pytest.mark.asyncio
+async def test_cod_confirm_sets_cod_pending_payment() -> None:
+    order = _order("pending_payment")
+    order.payment_method = "cod"
+    order.reservation_expires_at = datetime.now(UTC)
+    service, _inventory = _service(order)
+    out = await service.admin_transition(
+        order.id,
+        TransitionIn(to_status="confirmed", note="COD accepted"),
+        actor_user_id=uuid4(),
+    )
+    assert out.status == "confirmed"
+    assert order.payment_status == "cod_pending"
+    assert order.reservation_expires_at is None
+    assert out.payment_status == "cod_pending"
+
+
+@pytest.mark.asyncio
+async def test_customer_can_cancel_confirmed_cod() -> None:
+    order = _order("confirmed")
+    order.payment_method = "cod"
+    order.payment_status = "cod_pending"
+    service, inventory = _service(order)
+    out = await service.cancel_mine(order.id, user_id=order.user_id)
+    assert out.status == "cancelled"
+    assert inventory.released == 1
+    assert order.payment_status == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_customer_cannot_cancel_shipped() -> None:
+    order = _order("shipped")
+    service, _inventory = _service(order)
+    with pytest.raises(ProblemError) as exc:
+        await service.cancel_mine(order.id, user_id=order.user_id)
+    assert exc.value.status == 422
+
+
+@pytest.mark.asyncio
+async def test_staff_cannot_cancel_after_ship() -> None:
+    order = _order("shipped")
+    service, _inventory = _service(order)
+    with pytest.raises(ProblemError):
+        await service.admin_transition(
+            order.id,
+            TransitionIn(to_status="cancelled"),
+            actor_user_id=uuid4(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_cod_delivered_marks_collected() -> None:
+    order = _order("shipped")
+    order.payment_method = "cod"
+    order.payment_status = "cod_pending"
+    service, _inventory = _service(order)
+    out = await service.admin_transition(
+        order.id,
+        TransitionIn(to_status="delivered"),
+        actor_user_id=uuid4(),
+    )
+    assert out.status == "delivered"
+    assert order.payment_status == "collected"
