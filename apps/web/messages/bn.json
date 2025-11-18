@@ -152,6 +152,7 @@
     "cancelHint": "শিপ হওয়ার আগে বাতিল করতে পারবেন।",
     "reservationHold": "স্টক ধরে রাখা হয়েছে {when} পর্যন্ত।",
     "paymentTitle": "পেমেন্ট",
+    "trackingLine": "{courier} · {tracking}",
     "paymentMethod": {
       "cod": "ক্যাশ অন ডেলিভারি",
       "bkash": "বিকাশ",
@@ -182,10 +183,62 @@
     "close": "বন্ধ",
     "total": "মোট",
     "reservationHold": "স্টক হোল্ড {when} পর্যন্ত।",
+    "courierPrompt": "কুরিয়ারের নাম",
+    "trackingPrompt": "ট্র্যাকিং নম্বর",
+    "shipFieldsRequired": "শিপ করতে কুরিয়ার ও ট্র্যাকিং লাগবে।",
     "markAs": "{status} করুন",
     "transitioned": "{status}-এ সরানো হয়েছে।",
     "filter": {
       "all": "সব"
+    }
+  },
+  "adminCourier": {
+    "hint": "পাইপলাইন: প্যাক → ট্র্যাকিংসহ শিপ → ডেলিভার। ফেল/রিটার্ন ধাপ ২১-এ।",
+    "refresh": "রিফ্রেশ",
+    "loadFailed": "কুরিয়ার বোর্ড লোড হয়নি।",
+    "saveFailed": "ফুলফিলমেন্ট আপডেট হয়নি।",
+    "emptyColumn": "এখানে অর্ডার নেই।",
+    "age": "{hours} ঘণ্টা পুরনো",
+    "markPacked": "প্যাকড করুন",
+    "ship": "শিপ",
+    "markDelivered": "ডেলিভার্ড করুন",
+    "shipTitle": "অর্ডার শিপ",
+    "courier": "কুরিয়ার",
+    "tracking": "ট্র্যাকিং নম্বর",
+    "confirmShip": "শিপ কনফার্ম",
+    "cancel": "বাতিল",
+    "packed": "প্যাকড করা হয়েছে।",
+    "shipped": "অর্ডার শিপ হয়েছে।",
+    "delivered": "অর্ডার ডেলিভার হয়েছে।",
+    "columns": {
+      "to_pack": "প্যাক করতে",
+      "packed": "প্যাকড",
+      "shipped": "শিপড",
+      "delivered": "ডেলিভার্ড"
+    }
+  },
+  "adminMetrics": {
+    "loadFailed": "ড্যাশবোর্ড মেট্রিক্স লোড হয়নি।",
+    "todayRevenue": "আজকের রেভিনিউ",
+    "weekRevenue": "৭ দিনের রেভিনিউ",
+    "monthRevenue": "৩০ দিনের রেভিনিউ",
+    "ordersCount": "{count} অর্ডার",
+    "cancelRate": "ক্যানসেল রেট {rate}",
+    "unshipped": "আনশিপড কনফার্মড",
+    "openCourier": "কুরিয়ার বোর্ড খুলুন",
+    "funnelTitle": "অর্ডার ফানেল",
+    "alertsTitle": "অ্যালার্ট",
+    "alertLowStock": "লো স্টক SKU: {count}",
+    "alertNearExpiry": "লো স্টকে নিয়ার-এক্সপায়ারি: {count}",
+    "alertOverdue": "শিপ ওভারডিউ: {count}",
+    "alertAbandoned": "অ্যাবান্ডন্ড কার্ট: {value}",
+    "topProducts": "টপ প্রোডাক্ট (৩০ দিন)",
+    "funnel": {
+      "pending_payment": "পেমেন্ট পেন্ডিং",
+      "confirmed": "কনফার্মড",
+      "shipped": "শিপড",
+      "delivered": "ডেলিভার্ড",
+      "cancelled": "বাতিল"
     }
   },
   "adminCarts": {
@@ -431,6 +484,8 @@
     "staffCreated": "Staff created ({id}).",
     "networkError": "Could not reach the API.",
     "working": "Working…",
+    "settingsStaff": "স্টাফ অ্যাকাউন্ট",
+    "settingsShipping": "ডেলিভারি জোন",
     "nav": {
       "dashboard": "Dashboard",
       "catalog": "Catalog",

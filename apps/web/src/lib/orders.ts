@@ -53,6 +53,9 @@ export type Order = {
   payment_method: string | null;
   payment_status: string | null;
   reservation_expires_at: string | null;
+  courier_name: string | null;
+  tracking_number: string | null;
+  packed_at: string | null;
   placed_at: string;
   confirmed_at: string | null;
   shipped_at: string | null;
@@ -61,6 +64,7 @@ export type Order = {
   items: OrderItem[];
   events: OrderEvent[];
   allowed_transitions: string[];
+  age_hours?: number | null;
 };
 
 export type OrderSummary = {
@@ -72,6 +76,60 @@ export type OrderSummary = {
   item_count: number;
   placed_at: string;
   user_email?: string | null;
+  payment_method?: string | null;
+  shipping_zone_slug?: string | null;
+  courier_name?: string | null;
+  tracking_number?: string | null;
+  packed_at?: string | null;
+  confirmed_at?: string | null;
+  shipped_at?: string | null;
+  age_hours?: number | null;
+};
+
+export type DashboardMetrics = {
+  currency: string;
+  today: {
+    revenue_poisha: number;
+    order_count: number;
+    aov_poisha: number;
+    cod_share: number;
+    cancel_rate: number;
+  };
+  last_7_days: {
+    revenue_poisha: number;
+    order_count: number;
+    aov_poisha: number;
+    cod_share: number;
+    cancel_rate: number;
+  };
+  last_30_days: {
+    revenue_poisha: number;
+    order_count: number;
+    aov_poisha: number;
+    cod_share: number;
+    cancel_rate: number;
+  };
+  funnel: {
+    pending_payment: number;
+    confirmed: number;
+    shipped: number;
+    delivered: number;
+    cancelled: number;
+  };
+  alerts: {
+    low_stock_count: number;
+    near_expiry_count: number;
+    overdue_shipments: number;
+    abandoned_cart_value_poisha: number;
+  };
+  top_products: Array<{
+    product_id: string;
+    product_slug: string;
+    product_name: string;
+    units: number;
+    revenue_poisha: number;
+  }>;
+  unshipped_confirmed: number;
 };
 
 async function okJson<T>(response: Response): Promise<T> {
@@ -127,13 +185,35 @@ export async function fetchAdminOrder(id: string): Promise<Order> {
   return okJson(response);
 }
 
+export async function packAdminOrder(id: string, note?: string): Promise<Order> {
+  const csrf = await fetchCsrfToken();
+  return okJson(await apiPost(`/api/v1/admin/orders/${id}/pack`, { note }, csrf));
+}
+
 export async function transitionAdminOrder(
   id: string,
   toStatus: string,
-  note?: string,
+  opts?: { note?: string; courier_name?: string; tracking_number?: string },
 ): Promise<Order> {
   const csrf = await fetchCsrfToken();
   return okJson(
-    await apiPost(`/api/v1/admin/orders/${id}/transition`, { to_status: toStatus, note }, csrf),
+    await apiPost(
+      `/api/v1/admin/orders/${id}/transition`,
+      {
+        to_status: toStatus,
+        note: opts?.note,
+        courier_name: opts?.courier_name,
+        tracking_number: opts?.tracking_number,
+      },
+      csrf,
+    ),
   );
+}
+
+export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
+  const response = await fetch("/api/v1/admin/metrics", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return okJson(response);
 }

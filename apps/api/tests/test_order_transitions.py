@@ -52,7 +52,12 @@ class FakeRepo:
         return self.order
 
     async def add_event(self, event: object) -> object:
+        if getattr(event, "id", None) is None:
+            event.id = uuid4()  # type: ignore[attr-defined]
+        if getattr(event, "created_at", None) is None:
+            event.created_at = datetime.now(UTC)  # type: ignore[attr-defined]
         self.events.append(event)  # type: ignore[arg-type]
+        self.order.events.append(event)
         return event
 
     async def save(self, order: SimpleNamespace) -> SimpleNamespace:
@@ -93,6 +98,9 @@ def _order(status: str) -> SimpleNamespace:
         payment_method="cod",
         payment_status="pending",
         reservation_expires_at=None,
+        courier_name=None,
+        tracking_number=None,
+        packed_at=None,
         placed_at=datetime.now(UTC),
         confirmed_at=None,
         shipped_at=None,
@@ -175,11 +183,41 @@ async def test_ship_consumes_reservation() -> None:
     service, inventory = _service(order)
     out = await service.admin_transition(
         order.id,
-        TransitionIn(to_status="shipped"),
+        TransitionIn(
+            to_status="shipped",
+            courier_name="Pathao",
+            tracking_number="PT-1001",
+        ),
         actor_user_id=uuid4(),
     )
     assert out.status == "shipped"
     assert inventory.consumed == 1
+    assert order.courier_name == "Pathao"
+    assert order.tracking_number == "PT-1001"
+    assert order.packed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_ship_requires_tracking() -> None:
+    order = _order("confirmed")
+    service, _inventory = _service(order)
+    with pytest.raises(ProblemError) as exc:
+        await service.admin_transition(
+            order.id,
+            TransitionIn(to_status="shipped"),
+            actor_user_id=uuid4(),
+        )
+    assert exc.value.status == 422
+
+
+@pytest.mark.asyncio
+async def test_admin_pack_sets_packed_at() -> None:
+    order = _order("confirmed")
+    service, _inventory = _service(order)
+    out = await service.admin_pack(order.id, actor_user_id=uuid4())
+    assert out.status == "confirmed"
+    assert order.packed_at is not None
+    assert out.packed_at is not None
 
 
 @pytest.mark.asyncio

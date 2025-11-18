@@ -77,11 +77,29 @@ export function AdminOrders() {
     if (!selected) {
       return;
     }
+    let courier_name: string | undefined;
+    let tracking_number: string | undefined;
+    if (toStatus === "shipped") {
+      const courier = window.prompt(t("courierPrompt"), selected.courier_name ?? "")?.trim();
+      const tracking = window.prompt(
+        t("trackingPrompt"),
+        selected.tracking_number ?? "",
+      )?.trim();
+      if (!courier || !tracking) {
+        setError(t("shipFieldsRequired"));
+        return;
+      }
+      courier_name = courier;
+      tracking_number = tracking;
+    }
     setPending(true);
     setError(null);
     setMessage(null);
     try {
-      const next = await transitionAdminOrder(selected.id, toStatus);
+      const next = await transitionAdminOrder(selected.id, toStatus, {
+        courier_name,
+        tracking_number,
+      });
       setSelected(next);
       setMessage(t("transitioned", { status: toStatus }));
       await load();

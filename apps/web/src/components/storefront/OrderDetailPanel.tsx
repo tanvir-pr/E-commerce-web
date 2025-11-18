@@ -124,6 +124,14 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
             ? ` · ${t(`paymentStatus.${order.payment_status}` as "paymentStatus.pending")}`
             : ""}
         </p>
+        {order.courier_name || order.tracking_number ? (
+          <p className="mt-2xs text-sm text-muted">
+            {t("trackingLine", {
+              courier: order.courier_name ?? "—",
+              tracking: order.tracking_number ?? "—",
+            })}
+          </p>
+        ) : null}
       </Reveal>
 
       <Reveal>

@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     stock_reservation_ttl_minutes: int = 15
     # Part 19: COD places move straight to confirmed (cancel still allowed until ship).
     cod_auto_confirm: bool = True
+    # Part 20: confirmed orders older than this (hours) count as overdue for packing/ship.
+    fulfilment_sla_hours: int = 48
+    inventory_low_stock_threshold: int = 10
+    inventory_near_expiry_days: int = 60
     # Shipping (Part 15). Poisha = BDT * 100. Used when a zone has no override.
     free_shipping_threshold_poisha: int = 300000
     # When a variant has no weight_grams, assume this for quote weight.

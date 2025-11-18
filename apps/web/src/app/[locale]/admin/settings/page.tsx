@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { AdminShippingZones } from "@/components/AdminShippingZones";
 import { AdminShell } from "@/components/AdminShell";
 import { StaffCreateForm } from "@/components/StaffCreateForm";
 
@@ -12,7 +13,16 @@ export default async function AdminSettingsPage({
   const t = await getTranslations("admin");
   return (
     <AdminShell title={t("nav.settings")} active="settings">
-      <StaffCreateForm />
+      <div className="flex flex-col gap-xl">
+        <section>
+          <h2 className="mb-md text-sm font-semibold text-ink">{t("settingsStaff")}</h2>
+          <StaffCreateForm />
+        </section>
+        <section>
+          <h2 className="mb-md text-sm font-semibold text-ink">{t("settingsShipping")}</h2>
+          <AdminShippingZones />
+        </section>
+      </div>
     </AdminShell>
   );
 }

@@ -25,6 +25,10 @@ from app.orders.constants import (
 )
 from app.orders.repository import OrderRepository
 from app.orders.schemas import (
+    DashboardAlertsOut,
+    DashboardMetricsOut,
+    DashboardPeriodOut,
+    FunnelCountsOut,
     OrderAddressOut,
     OrderEventOut,
     OrderItemOut,
@@ -32,6 +36,7 @@ from app.orders.schemas import (
     OrderOut,
     OrderSummaryOut,
     PlaceOrderIn,
+    TopProductOut,
     TransitionIn,
 )
 from app.problems import PROBLEM_FORBIDDEN, PROBLEM_VALIDATION, ProblemError
@@ -228,6 +233,111 @@ class OrderService:
             actor_user_id=actor_user_id,
             source="staff",
             note=body.note,
+            courier_name=body.courier_name,
+            tracking_number=body.tracking_number,
+        )
+
+    async def admin_pack(
+        self, order_id: UUID, *, actor_user_id: UUID, note: str | None = None
+    ) -> OrderOut:
+        order = await self.repo.require(order_id)
+        if order.status != "confirmed":
+            raise ProblemError(
+                422,
+                "Validation error",
+                "Only confirmed orders can be marked packed.",
+                PROBLEM_VALIDATION,
+            )
+        if order.packed_at is not None:
+            return self._order_out(order, actor="staff")
+        now = datetime.now(UTC)
+        order.packed_at = now
+        await self.repo.add_event(
+            OrderEvent(
+                order_id=order.id,
+                from_status="confirmed",
+                to_status="confirmed",
+                actor_user_id=actor_user_id,
+                source="staff",
+                note=note or "Packed",
+                meta={"packed": True},
+            )
+        )
+        await self.audit.record(
+            action="order.packed",
+            actor_user_id=actor_user_id,
+            subject_type="order",
+            subject_id=str(order.id),
+            meta={"order_number": order.order_number},
+        )
+        order = await self.repo.save(order)
+        return self._order_out(order, actor="staff")
+
+    async def dashboard_metrics(self) -> DashboardMetricsOut:
+        now = datetime.now(UTC)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        day7 = now - timedelta(days=7)
+        day30 = now - timedelta(days=30)
+        funnel_raw = await self.repo.count_by_status()
+        funnel = FunnelCountsOut(
+            pending_payment=funnel_raw.get("pending_payment", 0),
+            confirmed=funnel_raw.get("confirmed", 0),
+            shipped=funnel_raw.get("shipped", 0),
+            delivered=funnel_raw.get("delivered", 0),
+            cancelled=funnel_raw.get("cancelled", 0),
+        )
+        low = await self.inventory.low_stock(
+            threshold=self.settings.inventory_low_stock_threshold
+        )
+        near_expiry = 0
+        for item in low.items:
+            if item.nearest_expiry is None:
+                continue
+            days = (item.nearest_expiry - now.date()).days
+            if 0 <= days <= self.settings.inventory_near_expiry_days:
+                near_expiry += 1
+        abandoned = await self.carts.admin_list(status="abandoned")
+        abandoned_value = sum(row.subtotal_poisha for row in abandoned.items)
+        overdue = await self.repo.count_overdue_confirmed(
+            cutoff=now - timedelta(hours=self.settings.fulfilment_sla_hours)
+        )
+        top_rows = await self.repo.top_products(since=day30, limit=5)
+        return DashboardMetricsOut(
+            today=self._period(await self.repo.period_stats(since=today_start)),
+            last_7_days=self._period(await self.repo.period_stats(since=day7)),
+            last_30_days=self._period(await self.repo.period_stats(since=day30)),
+            funnel=funnel,
+            alerts=DashboardAlertsOut(
+                low_stock_count=len(low.items),
+                near_expiry_count=near_expiry,
+                overdue_shipments=overdue,
+                abandoned_cart_value_poisha=abandoned_value,
+            ),
+            top_products=[
+                TopProductOut(
+                    product_id=row[0],
+                    product_slug=row[1],
+                    product_name=row[2],
+                    units=int(row[3] or 0),
+                    revenue_poisha=int(row[4] or 0),
+                )
+                for row in top_rows
+            ],
+            unshipped_confirmed=funnel.confirmed,
+        )
+
+    def _period(self, raw: dict[str, float | int]) -> DashboardPeriodOut:
+        order_count = int(raw["order_count"])
+        revenue = int(raw["revenue_poisha"])
+        placed = int(raw["placed_count"])
+        cancelled = int(raw["cancelled_count"])
+        cod_sold = int(raw["cod_sold_count"])
+        return DashboardPeriodOut(
+            revenue_poisha=revenue,
+            order_count=order_count,
+            aov_poisha=(revenue // order_count) if order_count else 0,
+            cod_share=(cod_sold / order_count) if order_count else 0.0,
+            cancel_rate=(cancelled / placed) if placed else 0.0,
         )
 
     async def _transition(
@@ -238,6 +348,8 @@ class OrderService:
         actor_user_id: UUID,
         source: str,
         note: str | None,
+        courier_name: str | None = None,
+        tracking_number: str | None = None,
     ) -> OrderOut:
         if to_status not in ORDER_STATUSES:
             raise ProblemError(
@@ -281,6 +393,19 @@ class OrderService:
             elif order.payment_status in (None, "pending"):
                 order.payment_status = "pending"
         elif to_status == "shipped":
+            courier = (courier_name or order.courier_name or "").strip()
+            tracking = (tracking_number or order.tracking_number or "").strip()
+            if source == "staff" and (not courier or not tracking):
+                raise ProblemError(
+                    422,
+                    "Validation error",
+                    "courier_name and tracking_number are required to ship.",
+                    PROBLEM_VALIDATION,
+                )
+            order.courier_name = courier or order.courier_name
+            order.tracking_number = tracking or order.tracking_number
+            if order.packed_at is None:
+                order.packed_at = now
             order.shipped_at = now
             order.reservation_expires_at = None
             await self.inventory.consume_for_order(order, actor_user_id=actor_user_id)
@@ -313,7 +438,13 @@ class OrderService:
             actor_user_id=actor_user_id,
             subject_type="order",
             subject_id=str(order.id),
-            meta={"from": from_status, "to": to_status, "source": source},
+            meta={
+                "from": from_status,
+                "to": to_status,
+                "source": source,
+                "courier_name": order.courier_name,
+                "tracking_number": order.tracking_number,
+            },
         )
         order = await self.repo.save(order)
         return self._order_out(order, actor="staff" if source == "staff" else "customer")
@@ -334,6 +465,10 @@ class OrderService:
             count += 1
         return count
 
+    def _age_hours(self, order: Order) -> float:
+        anchor = order.confirmed_at or order.placed_at
+        return round((datetime.now(UTC) - anchor).total_seconds() / 3600, 1)
+
     def _summary(self, order: Order, *, include_email: bool = False) -> OrderSummaryOut:
         return OrderSummaryOut(
             id=order.id,
@@ -344,6 +479,14 @@ class OrderService:
             item_count=sum(i.qty for i in order.items),
             placed_at=order.placed_at,
             user_email=order.user.email if include_email and order.user else None,
+            payment_method=order.payment_method,
+            shipping_zone_slug=order.shipping_zone_slug,
+            courier_name=order.courier_name,
+            tracking_number=order.tracking_number,
+            packed_at=order.packed_at,
+            confirmed_at=order.confirmed_at,
+            shipped_at=order.shipped_at,
+            age_hours=self._age_hours(order),
         )
 
     def _order_out(self, order: Order, *, actor: str) -> OrderOut:
@@ -379,11 +522,15 @@ class OrderService:
             payment_method=order.payment_method,
             payment_status=order.payment_status,
             reservation_expires_at=order.reservation_expires_at,
+            courier_name=order.courier_name,
+            tracking_number=order.tracking_number,
+            packed_at=order.packed_at,
             placed_at=order.placed_at,
             confirmed_at=order.confirmed_at,
             shipped_at=order.shipped_at,
             delivered_at=order.delivered_at,
             cancelled_at=order.cancelled_at,
+            age_hours=self._age_hours(order),
             items=[
                 OrderItemOut(
                     id=item.id,

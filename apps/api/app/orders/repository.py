@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.base import ExecutableOption
@@ -99,3 +99,70 @@ class OrderRepository:
             .limit(limit)
         )
         return list(result.scalars().unique().all())
+
+    async def count_by_status(self) -> dict[str, int]:
+        result = await self.session.execute(
+            select(Order.status, func.count()).group_by(Order.status)
+        )
+        return {str(status): int(count) for status, count in result.all()}
+
+    async def period_stats(self, *, since: datetime) -> dict[str, float | int]:
+        sold = Order.status.in_(("confirmed", "shipped", "delivered"))
+        result = await self.session.execute(
+            select(
+                func.coalesce(
+                    func.sum(case((sold, Order.total_poisha), else_=0)),
+                    0,
+                ),
+                func.count().filter(sold),
+                func.count().filter(Order.status == "cancelled"),
+                func.count().filter(
+                    sold,
+                    Order.payment_method == "cod",
+                ),
+                func.count(),
+            ).where(Order.placed_at >= since)
+        )
+        revenue, sold_count, cancelled, cod_sold, total = result.one()
+        return {
+            "revenue_poisha": int(revenue or 0),
+            "order_count": int(sold_count or 0),
+            "cancelled_count": int(cancelled or 0),
+            "cod_sold_count": int(cod_sold or 0),
+            "placed_count": int(total or 0),
+        }
+
+    async def count_overdue_confirmed(self, *, cutoff: datetime) -> int:
+        result = await self.session.execute(
+            select(func.count()).where(
+                Order.status == "confirmed",
+                Order.confirmed_at.is_not(None),
+                Order.confirmed_at <= cutoff,
+            )
+        )
+        return int(result.scalar_one())
+
+    async def top_products(
+        self, *, since: datetime, limit: int = 5
+    ) -> list[tuple[UUID, str, str, int, int]]:
+        result = await self.session.execute(
+            select(
+                OrderItem.product_id,
+                OrderItem.product_slug,
+                OrderItem.product_name,
+                func.sum(OrderItem.qty),
+                func.sum(OrderItem.line_total_poisha),
+            )
+            .join(Order, OrderItem.order_id == Order.id)
+            .where(
+                Order.placed_at >= since,
+                Order.status.in_(("confirmed", "shipped", "delivered")),
+            )
+            .group_by(OrderItem.product_id, OrderItem.product_slug, OrderItem.product_name)
+            .order_by(func.sum(OrderItem.line_total_poisha).desc())
+            .limit(limit)
+        )
+        return [
+            (row[0], row[1], row[2], int(row[3] or 0), int(row[4] or 0))
+            for row in result.all()
+        ]

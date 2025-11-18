@@ -47,6 +47,9 @@ class Order(Base):
     payment_method: Mapped[str | None] = mapped_column(String(32))
     payment_status: Mapped[str | None] = mapped_column(String(32))
     reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    courier_name: Mapped[str | None] = mapped_column(String(64), index=True)
+    tracking_number: Mapped[str | None] = mapped_column(String(128), index=True)
+    packed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

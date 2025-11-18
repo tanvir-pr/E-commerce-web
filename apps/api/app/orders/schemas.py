@@ -58,6 +58,9 @@ class OrderOut(BaseModel):
     payment_method: str | None
     payment_status: str | None
     reservation_expires_at: datetime | None = None
+    courier_name: str | None = None
+    tracking_number: str | None = None
+    packed_at: datetime | None = None
     placed_at: datetime
     confirmed_at: datetime | None
     shipped_at: datetime | None
@@ -66,6 +69,7 @@ class OrderOut(BaseModel):
     items: list[OrderItemOut]
     events: list[OrderEventOut] = Field(default_factory=list)
     allowed_transitions: list[str] = Field(default_factory=list)
+    age_hours: float | None = None
 
 
 class OrderSummaryOut(BaseModel):
@@ -77,6 +81,14 @@ class OrderSummaryOut(BaseModel):
     item_count: int
     placed_at: datetime
     user_email: str | None = None
+    payment_method: str | None = None
+    shipping_zone_slug: str | None = None
+    courier_name: str | None = None
+    tracking_number: str | None = None
+    packed_at: datetime | None = None
+    confirmed_at: datetime | None = None
+    shipped_at: datetime | None = None
+    age_hours: float | None = None
 
 
 class OrderListOut(BaseModel):
@@ -99,7 +111,52 @@ class PlaceOrderIn(BaseModel):
 class TransitionIn(BaseModel):
     to_status: str = Field(min_length=1, max_length=32)
     note: str | None = Field(default=None, max_length=500)
+    courier_name: str | None = Field(default=None, max_length=64)
+    tracking_number: str | None = Field(default=None, max_length=128)
 
 
 class MessageOut(BaseModel):
     message: str
+
+
+class FunnelCountsOut(BaseModel):
+    pending_payment: int
+    confirmed: int
+    shipped: int
+    delivered: int
+    cancelled: int
+
+
+class DashboardPeriodOut(BaseModel):
+    revenue_poisha: int
+    order_count: int
+    aov_poisha: int
+    cod_share: float
+    cancel_rate: float
+
+
+class DashboardAlertsOut(BaseModel):
+    low_stock_count: int
+    near_expiry_count: int
+    overdue_shipments: int
+    abandoned_cart_value_poisha: int
+
+
+class TopProductOut(BaseModel):
+    product_id: UUID
+    product_slug: str
+    product_name: str
+    units: int
+    revenue_poisha: int
+
+
+class DashboardMetricsOut(BaseModel):
+    currency: str = "BDT"
+    today: DashboardPeriodOut
+    last_7_days: DashboardPeriodOut
+    last_30_days: DashboardPeriodOut
+    funnel: FunnelCountsOut
+    alerts: DashboardAlertsOut
+    top_products: list[TopProductOut]
+    unshipped_confirmed: int
+

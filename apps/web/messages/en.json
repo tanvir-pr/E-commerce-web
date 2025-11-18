@@ -152,6 +152,7 @@
     "cancelHint": "You can cancel until the order ships.",
     "reservationHold": "Stock held until {when}.",
     "paymentTitle": "Payment",
+    "trackingLine": "{courier} · {tracking}",
     "paymentMethod": {
       "cod": "Cash on delivery",
       "bkash": "bKash",
@@ -182,10 +183,62 @@
     "close": "Close",
     "total": "Total",
     "reservationHold": "Stock hold until {when}.",
+    "courierPrompt": "Courier name",
+    "trackingPrompt": "Tracking number",
+    "shipFieldsRequired": "Courier and tracking are required to ship.",
     "markAs": "Mark {status}",
     "transitioned": "Moved to {status}.",
     "filter": {
       "all": "All"
+    }
+  },
+  "adminCourier": {
+    "hint": "Pipeline: pack → ship with tracking → deliver. Failed/returned lanes come in Part 21.",
+    "refresh": "Refresh",
+    "loadFailed": "Could not load courier board.",
+    "saveFailed": "Could not update fulfilment.",
+    "emptyColumn": "No orders here.",
+    "age": "{hours}h old",
+    "markPacked": "Mark packed",
+    "ship": "Ship",
+    "markDelivered": "Mark delivered",
+    "shipTitle": "Ship order",
+    "courier": "Courier",
+    "tracking": "Tracking number",
+    "confirmShip": "Confirm ship",
+    "cancel": "Cancel",
+    "packed": "Marked packed.",
+    "shipped": "Order shipped.",
+    "delivered": "Order delivered.",
+    "columns": {
+      "to_pack": "To pack",
+      "packed": "Packed",
+      "shipped": "Shipped",
+      "delivered": "Delivered"
+    }
+  },
+  "adminMetrics": {
+    "loadFailed": "Could not load dashboard metrics.",
+    "todayRevenue": "Today revenue",
+    "weekRevenue": "7-day revenue",
+    "monthRevenue": "30-day revenue",
+    "ordersCount": "{count} orders",
+    "cancelRate": "Cancel rate {rate}",
+    "unshipped": "Unshipped confirmed",
+    "openCourier": "Open courier board",
+    "funnelTitle": "Order funnel",
+    "alertsTitle": "Alerts",
+    "alertLowStock": "Low stock SKUs: {count}",
+    "alertNearExpiry": "Near-expiry among low stock: {count}",
+    "alertOverdue": "Overdue to ship: {count}",
+    "alertAbandoned": "Abandoned cart value: {value}",
+    "topProducts": "Top products (30d)",
+    "funnel": {
+      "pending_payment": "Pending pay",
+      "confirmed": "Confirmed",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
     }
   },
   "adminCarts": {
@@ -431,6 +484,8 @@
     "staffCreated": "Staff created ({id}).",
     "networkError": "Could not reach the API.",
     "working": "Working…",
+    "settingsStaff": "Staff accounts",
+    "settingsShipping": "Delivery zones",
     "nav": {
       "dashboard": "Dashboard",
       "catalog": "Catalog",
