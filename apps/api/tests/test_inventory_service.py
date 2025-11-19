@@ -123,6 +123,7 @@ class FakeRepo:
             qty=int(row.qty),  # type: ignore[attr-defined]
             released_at=None,
             consumed=False,
+            restocked_at=None,
         )
         self.allocations.append(saved)
         return saved
@@ -135,6 +136,18 @@ class FakeRepo:
             row
             for row in self.allocations
             if row.order_id == order_id and row.released_at is None
+        ]
+
+    async def list_restockable_allocations(
+        self, order_id: UUID, *, for_update: bool = False
+    ) -> list[SimpleNamespace]:
+        _ = for_update
+        return [
+            row
+            for row in self.allocations
+            if row.order_id == order_id
+            and row.consumed
+            and getattr(row, "restocked_at", None) is None
         ]
 
     async def save_allocation(self, row: SimpleNamespace) -> SimpleNamespace:
@@ -307,3 +320,22 @@ async def test_consume_does_not_restock() -> None:
     restored = await service.release_for_order(order, actor_user_id=uuid4())
     assert restored == 0
     assert await repo.qty_on_hand(variant.id) == 2
+
+
+@pytest.mark.asyncio
+async def test_return_restock_after_consume() -> None:
+    service, repo, audit, variant = _service()
+    await service.receive(
+        ReceiptIn(variant_id=variant.id, qty=5, lot_code="RET1"),
+        actor_user_id=uuid4(),
+    )
+    order = SimpleNamespace(id=uuid4(), order_number="SOL-RET-1")
+    item = SimpleNamespace(id=uuid4(), variant_id=variant.id, sku=variant.sku, qty=3)
+    await service.reserve_for_order(order, [item], actor_user_id=uuid4())
+    await service.consume_for_order(order, actor_user_id=uuid4())
+    restored = await service.restock_for_order(order, actor_user_id=uuid4())
+    assert restored == 3
+    assert await repo.qty_on_hand(variant.id) == 5
+    assert any(m.reason == "return_restock" for m in repo.movements)
+    assert "inventory.return_restocked" in audit.actions
+    assert await service.restock_for_order(order, actor_user_id=uuid4()) == 0

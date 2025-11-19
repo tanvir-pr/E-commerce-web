@@ -95,6 +95,8 @@ class FakeRepo:
             confirmed_at=None,
             shipped_at=None,
             delivered_at=None,
+            delivery_failed_at=None,
+            returned_at=None,
             cancelled_at=None,
             items=[],
             events=[],

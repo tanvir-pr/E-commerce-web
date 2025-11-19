@@ -10,5 +10,6 @@ MOVEMENT_REASONS = frozenset(
         "fefo_issue",
         "reservation",
         "reservation_release",
+        "return_restock",
     }
 )

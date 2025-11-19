@@ -137,6 +137,19 @@ class InventoryRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_restockable_allocations(
+        self, order_id: UUID, *, for_update: bool = False
+    ) -> list[StockReservationAllocation]:
+        stmt = select(StockReservationAllocation).where(
+            StockReservationAllocation.order_id == order_id,
+            StockReservationAllocation.consumed.is_(True),
+            StockReservationAllocation.restocked_at.is_(None),
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def save_allocation(
         self, row: StockReservationAllocation
     ) -> StockReservationAllocation:

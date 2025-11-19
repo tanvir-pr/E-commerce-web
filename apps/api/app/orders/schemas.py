@@ -65,6 +65,8 @@ class OrderOut(BaseModel):
     confirmed_at: datetime | None
     shipped_at: datetime | None
     delivered_at: datetime | None
+    delivery_failed_at: datetime | None = None
+    returned_at: datetime | None = None
     cancelled_at: datetime | None
     items: list[OrderItemOut]
     events: list[OrderEventOut] = Field(default_factory=list)
@@ -124,6 +126,8 @@ class FunnelCountsOut(BaseModel):
     confirmed: int
     shipped: int
     delivered: int
+    delivery_failed: int = 0
+    returned: int = 0
     cancelled: int
 
 

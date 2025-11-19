@@ -171,6 +171,8 @@
       "confirmed": "Confirmed",
       "shipped": "Shipped",
       "delivered": "Delivered",
+      "delivery_failed": "Delivery failed",
+      "returned": "Returned",
       "cancelled": "Cancelled"
     }
   },
@@ -193,7 +195,7 @@
     }
   },
   "adminCourier": {
-    "hint": "Pipeline: pack → ship with tracking → deliver. Failed/returned lanes come in Part 21.",
+    "hint": "Pipeline: pack → ship → deliver, or fail / return with restock.",
     "refresh": "Refresh",
     "loadFailed": "Could not load courier board.",
     "saveFailed": "Could not update fulfilment.",
@@ -202,6 +204,9 @@
     "markPacked": "Mark packed",
     "ship": "Ship",
     "markDelivered": "Mark delivered",
+    "markFailed": "Delivery failed",
+    "markReturned": "Returned",
+    "retryShip": "Retry ship",
     "shipTitle": "Ship order",
     "courier": "Courier",
     "tracking": "Tracking number",
@@ -210,11 +215,15 @@
     "packed": "Marked packed.",
     "shipped": "Order shipped.",
     "delivered": "Order delivered.",
+    "failed": "Marked delivery failed.",
+    "returnedOk": "Parcel returned and stock restocked.",
     "columns": {
       "to_pack": "To pack",
       "packed": "Packed",
       "shipped": "Shipped",
-      "delivered": "Delivered"
+      "failed": "Failed",
+      "delivered": "Delivered",
+      "returned": "Returned"
     }
   },
   "adminMetrics": {
@@ -238,6 +247,8 @@
       "confirmed": "Confirmed",
       "shipped": "Shipped",
       "delivered": "Delivered",
+      "delivery_failed": "Failed",
+      "returned": "Returned",
       "cancelled": "Cancelled"
     }
   },

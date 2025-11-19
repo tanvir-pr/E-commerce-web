@@ -6,6 +6,8 @@ ORDER_STATUSES = frozenset(
         "confirmed",
         "shipped",
         "delivered",
+        "delivery_failed",
+        "returned",
         "cancelled",
     }
 )
@@ -14,7 +16,8 @@ ORDER_STATUSES = frozenset(
 ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "pending_payment": frozenset({"confirmed", "cancelled"}),
     "confirmed": frozenset({"shipped", "cancelled"}),
-    "shipped": frozenset({"delivered"}),
+    "shipped": frozenset({"delivered", "delivery_failed", "returned"}),
+    "delivery_failed": frozenset({"shipped", "returned"}),
 }
 
 # Part 19: customer + staff may cancel until the parcel ships.
@@ -22,7 +25,16 @@ CUSTOMER_CANCEL_STATUSES = frozenset({"pending_payment", "confirmed"})
 STAFF_CANCEL_STATUSES = frozenset({"pending_payment", "confirmed"})
 
 ADMIN_LIST_FILTERS = frozenset(
-    {"pending_payment", "confirmed", "shipped", "delivered", "cancelled", "all"}
+    {
+        "pending_payment",
+        "confirmed",
+        "shipped",
+        "delivered",
+        "delivery_failed",
+        "returned",
+        "cancelled",
+        "all",
+    }
 )
 
 PAYMENT_METHODS = frozenset({"cod", "bkash", "sslcommerz"})

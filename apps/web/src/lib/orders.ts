@@ -60,6 +60,8 @@ export type Order = {
   confirmed_at: string | null;
   shipped_at: string | null;
   delivered_at: string | null;
+  delivery_failed_at: string | null;
+  returned_at: string | null;
   cancelled_at: string | null;
   items: OrderItem[];
   events: OrderEvent[];
@@ -114,6 +116,8 @@ export type DashboardMetrics = {
     confirmed: number;
     shipped: number;
     delivered: number;
+    delivery_failed: number;
+    returned: number;
     cancelled: number;
   };
   alerts: {

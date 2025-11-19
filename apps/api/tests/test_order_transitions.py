@@ -25,6 +25,7 @@ class FakeInventory:
     def __init__(self) -> None:
         self.released = 0
         self.consumed = 0
+        self.restocked = 0
 
     async def reserve_for_order(self, *_args: object, **_kwargs: object) -> int:
         return 0
@@ -35,6 +36,10 @@ class FakeInventory:
 
     async def consume_for_order(self, *_args: object, **_kwargs: object) -> int:
         self.consumed += 1
+        return 1
+
+    async def restock_for_order(self, *_args: object, **_kwargs: object) -> int:
+        self.restocked += 1
         return 1
 
 
@@ -105,6 +110,8 @@ def _order(status: str) -> SimpleNamespace:
         confirmed_at=None,
         shipped_at=None,
         delivered_at=None,
+        delivery_failed_at=None,
+        returned_at=None,
         cancelled_at=None,
         items=[],
         events=[],
@@ -294,3 +301,57 @@ async def test_cod_delivered_marks_collected() -> None:
     )
     assert out.status == "delivered"
     assert order.payment_status == "collected"
+
+
+@pytest.mark.asyncio
+async def test_delivery_failed_then_retry_ship() -> None:
+    order = _order("shipped")
+    order.courier_name = "Pathao"
+    order.tracking_number = "PT-1"
+    service, inventory = _service(order)
+    failed = await service.admin_transition(
+        order.id,
+        TransitionIn(to_status="delivery_failed", note="Customer unavailable"),
+        actor_user_id=uuid4(),
+    )
+    assert failed.status == "delivery_failed"
+    assert order.delivery_failed_at is not None
+    retried = await service.admin_transition(
+        order.id,
+        TransitionIn(to_status="shipped"),
+        actor_user_id=uuid4(),
+    )
+    assert retried.status == "shipped"
+    assert inventory.consumed == 1
+
+
+@pytest.mark.asyncio
+async def test_returned_restocks() -> None:
+    order = _order("shipped")
+    order.payment_method = "cod"
+    order.payment_status = "cod_pending"
+    service, inventory = _service(order)
+    out = await service.admin_transition(
+        order.id,
+        TransitionIn(to_status="returned", note="RTO"),
+        actor_user_id=uuid4(),
+    )
+    assert out.status == "returned"
+    assert order.returned_at is not None
+    assert order.payment_status == "cancelled"
+    assert inventory.restocked == 1
+
+
+@pytest.mark.asyncio
+async def test_failed_then_returned() -> None:
+    order = _order("delivery_failed")
+    order.payment_method = "cod"
+    order.payment_status = "cod_pending"
+    service, inventory = _service(order)
+    out = await service.admin_transition(
+        order.id,
+        TransitionIn(to_status="returned"),
+        actor_user_id=uuid4(),
+    )
+    assert out.status == "returned"
+    assert inventory.restocked == 1

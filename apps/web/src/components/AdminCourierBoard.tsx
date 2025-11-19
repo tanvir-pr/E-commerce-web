@@ -19,6 +19,8 @@ export function AdminCourierBoard() {
   const [confirmed, setConfirmed] = useState<OrderSummary[]>([]);
   const [shipped, setShipped] = useState<OrderSummary[]>([]);
   const [delivered, setDelivered] = useState<OrderSummary[]>([]);
+  const [failed, setFailed] = useState<OrderSummary[]>([]);
+  const [returned, setReturned] = useState<OrderSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -31,14 +33,18 @@ export function AdminCourierBoard() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [c, s, d] = await Promise.all([
+      const [c, s, d, f, r] = await Promise.all([
         fetchAdminOrders("confirmed"),
         fetchAdminOrders("shipped"),
         fetchAdminOrders("delivered"),
+        fetchAdminOrders("delivery_failed"),
+        fetchAdminOrders("returned"),
       ]);
       setConfirmed(c);
       setShipped(s);
       setDelivered(d);
+      setFailed(f);
+      setReturned(r);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("loadFailed"));
     }
@@ -70,9 +76,11 @@ export function AdminCourierBoard() {
       { key: "to_pack" as const, items: toPack },
       { key: "packed" as const, items: packed },
       { key: "shipped" as const, items: shipped },
+      { key: "failed" as const, items: failed },
       { key: "delivered" as const, items: delivered },
+      { key: "returned" as const, items: returned },
     ];
-  }, [confirmed, shipped, delivered]);
+  }, [confirmed, shipped, delivered, failed, returned]);
 
   async function onPack(id: string) {
     setPending(true);
@@ -111,13 +119,13 @@ export function AdminCourierBoard() {
     }
   }
 
-  async function onDeliver(id: string) {
+  async function onTransition(id: string, toStatus: string, okMessage: string) {
     setPending(true);
     setError(null);
     setMessage(null);
     try {
-      await transitionAdminOrder(id, "delivered");
-      setMessage(t("delivered"));
+      await transitionAdminOrder(id, toStatus);
+      setMessage(okMessage);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("saveFailed"));
@@ -203,7 +211,7 @@ export function AdminCourierBoard() {
         </div>
       ) : null}
 
-      <div className="grid gap-md lg:grid-cols-4">
+      <div className="grid gap-md xl:grid-cols-3 2xl:grid-cols-6">
         {columns.map((col) => (
           <section key={col.key} className="min-w-0 border border-line bg-surface">
             <header className="border-b border-line px-sm py-sm">
@@ -244,7 +252,11 @@ export function AdminCourierBoard() {
                           type="button"
                           disabled={pending}
                           onClick={() =>
-                            setShipForm({ id: row.id, courier: "", tracking: "" })
+                            setShipForm({
+                              id: row.id,
+                              courier: row.courier_name ?? "",
+                              tracking: row.tracking_number ?? "",
+                            })
                           }
                           className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
                         >
@@ -252,14 +264,58 @@ export function AdminCourierBoard() {
                         </button>
                       ) : null}
                       {col.key === "shipped" ? (
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onClick={() => void onDeliver(row.id)}
-                          className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
-                        >
-                          {t("markDelivered")}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => void onTransition(row.id, "delivered", t("delivered"))}
+                            className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
+                          >
+                            {t("markDelivered")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => void onTransition(row.id, "delivery_failed", t("failed"))}
+                            className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
+                          >
+                            {t("markFailed")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => void onTransition(row.id, "returned", t("returnedOk"))}
+                            className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
+                          >
+                            {t("markReturned")}
+                          </button>
+                        </>
+                      ) : null}
+                      {col.key === "failed" ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() =>
+                              setShipForm({
+                                id: row.id,
+                                courier: row.courier_name ?? "",
+                                tracking: row.tracking_number ?? "",
+                              })
+                            }
+                            className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
+                          >
+                            {t("retryShip")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => void onTransition(row.id, "returned", t("returnedOk"))}
+                            className="rounded-sm border border-line px-sm py-xs text-xs disabled:opacity-60"
+                          >
+                            {t("markReturned")}
+                          </button>
+                        </>
                       ) : null}
                     </div>
                     <p className="mt-2xs text-[11px] text-muted">

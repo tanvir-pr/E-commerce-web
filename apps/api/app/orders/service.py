@@ -284,6 +284,8 @@ class OrderService:
             confirmed=funnel_raw.get("confirmed", 0),
             shipped=funnel_raw.get("shipped", 0),
             delivered=funnel_raw.get("delivered", 0),
+            delivery_failed=funnel_raw.get("delivery_failed", 0),
+            returned=funnel_raw.get("returned", 0),
             cancelled=funnel_raw.get("cancelled", 0),
         )
         low = await self.inventory.low_stock(
@@ -378,7 +380,7 @@ class OrderService:
                 raise ProblemError(
                     422,
                     "Validation error",
-                    "Staff cannot cancel after shipping. Use returns in a later step.",
+                    "Staff cannot cancel after shipping. Mark delivery_failed or returned instead.",
                     PROBLEM_VALIDATION,
                 )
 
@@ -408,11 +410,23 @@ class OrderService:
                 order.packed_at = now
             order.shipped_at = now
             order.reservation_expires_at = None
+            # First ship consumes; retry after delivery_failed is a no-op.
             await self.inventory.consume_for_order(order, actor_user_id=actor_user_id)
         elif to_status == "delivered":
             order.delivered_at = now
             if order.payment_method == "cod":
                 order.payment_status = "collected"
+        elif to_status == "delivery_failed":
+            order.delivery_failed_at = now
+        elif to_status == "returned":
+            order.returned_at = now
+            if order.payment_method == "cod" and order.payment_status == "cod_pending":
+                order.payment_status = "cancelled"
+            await self.inventory.restock_for_order(
+                order,
+                actor_user_id=actor_user_id,
+                note=note or "Returned parcel restocked",
+            )
         elif to_status == "cancelled":
             order.cancelled_at = now
             order.payment_status = "cancelled"
@@ -529,6 +543,8 @@ class OrderService:
             confirmed_at=order.confirmed_at,
             shipped_at=order.shipped_at,
             delivered_at=order.delivered_at,
+            delivery_failed_at=order.delivery_failed_at,
+            returned_at=order.returned_at,
             cancelled_at=order.cancelled_at,
             age_hours=self._age_hours(order),
             items=[

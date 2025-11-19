@@ -52,6 +52,8 @@ class StockReservationAllocation(Base):
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When True, stock was consumed (shipped) — do not restock on release.
     consumed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Set when a returned parcel puts units back on the batch (Part 21).
+    restocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     order = relationship("Order", lazy="noload")
     batch = relationship("StockBatch", lazy="noload")

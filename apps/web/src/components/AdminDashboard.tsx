@@ -128,13 +128,15 @@ export function AdminDashboard() {
 
           <div>
             <h2 className="text-sm font-semibold text-ink">{tm("funnelTitle")}</h2>
-            <ul className="mt-sm grid gap-sm sm:grid-cols-5">
+            <ul className="mt-sm grid gap-sm sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
               {(
                 [
                   "pending_payment",
                   "confirmed",
                   "shipped",
                   "delivered",
+                  "delivery_failed",
+                  "returned",
                   "cancelled",
                 ] as const
               ).map((key) => (

@@ -17,6 +17,8 @@ const FILTERS = [
   "confirmed",
   "shipped",
   "delivered",
+  "delivery_failed",
+  "returned",
   "cancelled",
   "all",
 ] as const;
