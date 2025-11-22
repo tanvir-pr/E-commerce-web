@@ -23,6 +23,7 @@ from app.orders.constants import (
     PAYMENT_METHODS,
     STAFF_CANCEL_STATUSES,
 )
+from app.orders.mailer import NullOrderMailer, OrderMailer
 from app.orders.repository import OrderRepository
 from app.orders.schemas import (
     DashboardAlertsOut,
@@ -47,12 +48,29 @@ def _order_number() -> str:
     return f"SOL-{raw[:4]}-{raw[4:10]}"
 
 
+_EMAIL_STATUSES = frozenset(
+    {
+        "pending_payment",
+        "confirmed",
+        "shipped",
+        "delivered",
+        "delivery_failed",
+        "returned",
+        "cancelled",
+    }
+)
+
+
 class OrderService:
     def __init__(
-        self, session: AsyncSession, settings: Settings | None = None
+        self,
+        session: AsyncSession,
+        settings: Settings | None = None,
+        mailer: OrderMailer | None = None,
     ) -> None:
         self.session = session
         self.settings = settings or get_settings()
+        self.mailer: OrderMailer = mailer or NullOrderMailer()
         self.repo = OrderRepository(session)
         self.checkout = CheckoutService(session)
         self.carts = CartService(session)
@@ -179,6 +197,9 @@ class OrderService:
             },
         )
         order = await self.repo.require(order.id)
+        # COD auto-confirm already emailed via _transition; prepaid stays pending.
+        if order.status == "pending_payment":
+            await self._notify_status(order, "pending_payment")
         return self._order_out(order, actor="customer")
 
     async def list_mine(self, user_id: UUID) -> OrderListOut:
@@ -461,7 +482,25 @@ class OrderService:
             },
         )
         order = await self.repo.save(order)
+        order = await self.repo.require(order.id)
+        await self._notify_status(order, to_status)
         return self._order_out(order, actor="staff" if source == "staff" else "customer")
+
+    async def _notify_status(self, order: Order, status: str) -> None:
+        if status not in _EMAIL_STATUSES:
+            return
+        user = order.user
+        email = user.email if user is not None else None
+        if not email:
+            return
+        await self.mailer.send_order_status(
+            email=email,
+            order_id=str(order.id),
+            order_number=order.order_number,
+            status=status,
+            courier_name=order.courier_name,
+            tracking_number=order.tracking_number,
+        )
 
     async def expire_reservations(self) -> int:
         """Cancel pending_payment orders whose stock hold has expired."""

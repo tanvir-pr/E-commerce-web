@@ -1,21 +1,15 @@
 """ARQ jobs for auth emails."""
 
 import asyncio
-import smtplib
 from email.message import EmailMessage
 from typing import Any
 
 import structlog
 
 from app.config import get_settings
+from app.mail.smtp import send_smtp
 
 log = structlog.get_logger()
-
-
-def _send_smtp(message: EmailMessage) -> None:
-    settings = get_settings()
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
-        client.send_message(message)
 
 
 async def send_verification_email(_ctx: dict[str, Any], email: str, token: str) -> None:
@@ -32,7 +26,7 @@ async def send_verification_email(_ctx: dict[str, Any], email: str, token: str) 
         "If you did not register, ignore this message.\n"
     )
     try:
-        await asyncio.to_thread(_send_smtp, message)
+        await asyncio.to_thread(send_smtp, message)
         log.info("verification_email_sent")
     except Exception:
         log.error("verification_email_failed", error_type="smtp")
@@ -53,7 +47,7 @@ async def send_password_reset_email(_ctx: dict[str, Any], email: str, token: str
         "If you did not request a reset, ignore this message.\n"
     )
     try:
-        await asyncio.to_thread(_send_smtp, message)
+        await asyncio.to_thread(send_smtp, message)
         log.info("password_reset_email_sent")
     except Exception:
         log.error("password_reset_email_failed", error_type="smtp")

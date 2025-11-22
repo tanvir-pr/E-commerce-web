@@ -2,12 +2,13 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_staff_user, get_current_user_id
 from app.models.user import User
+from app.orders.mailer import ArqOrderMailer
 from app.orders.schemas import DashboardMetricsOut, OrderListOut, OrderOut, TransitionIn
 from app.orders.service import OrderService
 from app.session import get_session
@@ -19,8 +20,10 @@ class PackIn(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
-def get_order_service(session: AsyncSession = Depends(get_session)) -> OrderService:
-    return OrderService(session)
+def get_order_service(
+    request: Request, session: AsyncSession = Depends(get_session)
+) -> OrderService:
+    return OrderService(session, mailer=ArqOrderMailer(request.app.state.arq))
 
 
 @router.get("/admin/metrics", response_model=DashboardMetricsOut)

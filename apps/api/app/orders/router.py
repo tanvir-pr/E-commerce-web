@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user_id
+from app.orders.mailer import ArqOrderMailer
 from app.orders.schemas import OrderListOut, OrderOut, PlaceOrderIn, TransitionIn
 from app.orders.service import OrderService
 from app.security.cookies import CART_COOKIE, clear_cart_cookie
@@ -14,8 +15,10 @@ from app.session import get_session
 router = APIRouter(tags=["orders"])
 
 
-def get_order_service(session: AsyncSession = Depends(get_session)) -> OrderService:
-    return OrderService(session)
+def get_order_service(
+    request: Request, session: AsyncSession = Depends(get_session)
+) -> OrderService:
+    return OrderService(session, mailer=ArqOrderMailer(request.app.state.arq))
 
 
 def _guest_token(request: Request) -> str | None:
