@@ -8,6 +8,65 @@ import { fetchMe, type Me } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
 import { cancelMyOrder, fetchMyOrder, type Order } from "@/lib/orders";
 
+type TrackStep = {
+  key: string;
+  at: string | null;
+  state: "done" | "current" | "upcoming";
+};
+
+function buildTrackSteps(order: Order): TrackStep[] {
+  const happy = ["pending_payment", "confirmed", "shipped", "delivered"] as const;
+  const stamps: Record<string, string | null> = {
+    pending_payment: order.placed_at,
+    confirmed: order.confirmed_at,
+    shipped: order.shipped_at,
+    delivered: order.delivered_at,
+  };
+
+  if (order.status === "cancelled") {
+    const steps: TrackStep[] = [];
+    for (const key of happy) {
+      const at = stamps[key];
+      if (!at) {
+        break;
+      }
+      steps.push({ key, at, state: "done" });
+    }
+    steps.push({ key: "cancelled", at: order.cancelled_at, state: "current" });
+    return steps;
+  }
+
+  if (order.status === "returned") {
+    const steps: TrackStep[] = [
+      { key: "pending_payment", at: order.placed_at, state: "done" },
+      { key: "confirmed", at: order.confirmed_at, state: "done" },
+      { key: "shipped", at: order.shipped_at, state: "done" },
+    ];
+    if (order.delivery_failed_at) {
+      steps.push({ key: "delivery_failed", at: order.delivery_failed_at, state: "done" });
+    }
+    steps.push({ key: "returned", at: order.returned_at, state: "current" });
+    return steps;
+  }
+
+  if (order.status === "delivery_failed") {
+    return [
+      { key: "pending_payment", at: order.placed_at, state: "done" },
+      { key: "confirmed", at: order.confirmed_at, state: "done" },
+      { key: "shipped", at: order.shipped_at, state: "done" },
+      { key: "delivery_failed", at: order.delivery_failed_at, state: "current" },
+    ];
+  }
+
+  const idx = happy.indexOf(order.status as (typeof happy)[number]);
+  const currentIdx = idx >= 0 ? idx : 0;
+  return happy.map((key, i) => ({
+    key,
+    at: stamps[key],
+    state: i < currentIdx ? "done" : i === currentIdx ? "current" : "upcoming",
+  }));
+}
+
 export function OrderDetailPanel({ orderId }: { orderId: string }) {
   const t = useTranslations("orders");
   const locale = useLocale();
@@ -84,6 +143,7 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   const addr = order.shipping_address;
+  const steps = buildTrackSteps(order);
 
   return (
     <div className="flex flex-col gap-xl">
@@ -115,6 +175,50 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
       </Reveal>
 
       <Reveal>
+        <h3 className="text-sm font-semibold text-ink">{t("trackingTitle")}</h3>
+        {order.courier_name || order.tracking_number ? (
+          <p className="mt-sm text-sm text-ink">
+            {t("trackingLine", {
+              courier: order.courier_name ?? "—",
+              tracking: order.tracking_number ?? "—",
+            })}
+          </p>
+        ) : (
+          <p className="mt-sm text-sm text-muted">{t("trackingPending")}</p>
+        )}
+        <ol className="mt-md space-y-0 border-l border-line pl-md">
+          {steps.map((step) => (
+            <li key={step.key} className="relative pb-md last:pb-0">
+              <span
+                aria-hidden
+                className={
+                  step.state === "done"
+                    ? "absolute -left-[1.3125rem] top-1 h-2.5 w-2.5 rounded-full bg-sage"
+                    : step.state === "current"
+                      ? "absolute -left-[1.3125rem] top-1 h-2.5 w-2.5 rounded-full bg-ink ring-2 ring-sage/40"
+                      : "absolute -left-[1.3125rem] top-1 h-2.5 w-2.5 rounded-full border border-line bg-paper"
+                }
+              />
+              <p
+                className={
+                  step.state === "upcoming"
+                    ? "text-sm text-muted"
+                    : "text-sm font-medium text-ink"
+                }
+              >
+                {t(`status.${step.key}`)}
+              </p>
+              {step.at ? (
+                <p className="text-xs text-muted">{new Date(step.at).toLocaleString()}</p>
+              ) : step.state === "upcoming" ? (
+                <p className="text-xs text-muted">{t("stepUpcoming")}</p>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </Reveal>
+
+      <Reveal>
         <h3 className="text-sm font-semibold text-ink">{t("paymentTitle")}</h3>
         <p className="mt-sm text-sm text-muted">
           {order.payment_method
@@ -124,14 +228,6 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
             ? ` · ${t(`paymentStatus.${order.payment_status}` as "paymentStatus.pending")}`
             : ""}
         </p>
-        {order.courier_name || order.tracking_number ? (
-          <p className="mt-2xs text-sm text-muted">
-            {t("trackingLine", {
-              courier: order.courier_name ?? "—",
-              tracking: order.tracking_number ?? "—",
-            })}
-          </p>
-        ) : null}
       </Reveal>
 
       <Reveal>
@@ -171,24 +267,26 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
         </p>
       </Reveal>
 
-      <Reveal>
-        <h3 className="text-sm font-semibold text-ink">{t("timelineTitle")}</h3>
-        <ol className="mt-sm divide-y divide-line border-t border-line text-sm">
-          {order.events.map((event) => (
-            <li key={event.id} className="py-sm">
-              <p className="font-medium text-ink">
-                {event.from_status
-                  ? `${t(`status.${event.from_status}`)} → ${t(`status.${event.to_status}`)}`
-                  : t(`status.${event.to_status}`)}
-              </p>
-              <p className="text-xs text-muted">
-                {new Date(event.created_at).toLocaleString()}
-                {event.note ? ` · ${event.note}` : ""}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </Reveal>
+      {order.events.length > 0 ? (
+        <Reveal>
+          <h3 className="text-sm font-semibold text-ink">{t("historyTitle")}</h3>
+          <ol className="mt-sm divide-y divide-line border-t border-line text-sm">
+            {order.events.map((event) => (
+              <li key={event.id} className="py-sm">
+                <p className="font-medium text-ink">
+                  {event.from_status
+                    ? `${t(`status.${event.from_status}`)} → ${t(`status.${event.to_status}`)}`
+                    : t(`status.${event.to_status}`)}
+                </p>
+                <p className="text-xs text-muted">
+                  {new Date(event.created_at).toLocaleString()}
+                  {event.note ? ` · ${event.note}` : ""}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </Reveal>
+      ) : null}
 
       {order.allowed_transitions.includes("cancelled") ? (
         <button
