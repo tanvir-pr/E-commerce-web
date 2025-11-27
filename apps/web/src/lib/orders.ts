@@ -172,6 +172,36 @@ export async function cancelMyOrder(id: string, note?: string): Promise<Order> {
   return okJson(await apiPost(`/api/v1/orders/${id}/cancel`, { to_status: "cancelled", note }, csrf));
 }
 
+export type PayStart = {
+  order_id: string;
+  method: string;
+  redirect_url: string;
+  provider_ref: string;
+  sandbox: boolean;
+};
+
+export type PayValidate = {
+  order_id: string;
+  order_number: string;
+  status: string;
+  payment_status: string | null;
+  provider_ref: string;
+  method: string;
+};
+
+export async function startOrderPayment(id: string): Promise<PayStart> {
+  const csrf = await fetchCsrfToken();
+  return okJson(await apiPost(`/api/v1/orders/${id}/pay`, {}, csrf));
+}
+
+export async function validatePayment(
+  method: string,
+  body: Record<string, unknown>,
+): Promise<PayValidate> {
+  const csrf = await fetchCsrfToken();
+  return okJson(await apiPost(`/api/v1/payments/${method}/validate`, body, csrf));
+}
+
 export async function fetchAdminOrders(status = "all"): Promise<OrderSummary[]> {
   const response = await fetch(`/api/v1/admin/orders?status=${encodeURIComponent(status)}`, {
     credentials: "include",

@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Reveal } from "@/components/motion/Reveal";
 import { fetchMe, type Me } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
-import { cancelMyOrder, fetchMyOrder, type Order } from "@/lib/orders";
+import { cancelMyOrder, fetchMyOrder, startOrderPayment, type Order } from "@/lib/orders";
 
 type TrackStep = {
   key: string;
@@ -70,14 +70,28 @@ function buildTrackSteps(order: Order): TrackStep[] {
 export function OrderDetailPanel({ orderId }: { orderId: string }) {
   const t = useTranslations("orders");
   const locale = useLocale();
+  const autoPayStarted = useRef(false);
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   const load = useCallback(async () => {
     setOrder(await fetchMyOrder(orderId));
   }, [orderId]);
+
+  const onPay = useCallback(async () => {
+    setPaying(true);
+    setError(null);
+    try {
+      const started = await startOrderPayment(orderId);
+      window.location.assign(started.redirect_url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("payFailed"));
+      setPaying(false);
+    }
+  }, [orderId, t]);
 
   useEffect(() => {
     let active = true;
@@ -102,6 +116,24 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
       active = false;
     };
   }, [load, t]);
+
+  useEffect(() => {
+    if (!order || autoPayStarted.current || typeof window === "undefined") {
+      return;
+    }
+    const wantsPay = new URLSearchParams(window.location.search).get("pay") === "1";
+    if (!wantsPay) {
+      return;
+    }
+    if (
+      order.status !== "pending_payment" ||
+      (order.payment_method !== "bkash" && order.payment_method !== "sslcommerz")
+    ) {
+      return;
+    }
+    autoPayStarted.current = true;
+    void onPay();
+  }, [order, onPay]);
 
   async function onCancel() {
     if (!window.confirm(t("cancelConfirm"))) {
@@ -171,6 +203,17 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
         ) : null}
         {order.allowed_transitions.includes("cancelled") ? (
           <p className="mt-2xs text-sm text-muted">{t("cancelHint")}</p>
+        ) : null}
+        {order.status === "pending_payment" &&
+        (order.payment_method === "bkash" || order.payment_method === "sslcommerz") ? (
+          <button
+            type="button"
+            disabled={paying}
+            onClick={() => void onPay()}
+            className="mt-md rounded-sm bg-sage px-md py-sm text-sm font-medium text-white hover:bg-sage-deep disabled:opacity-60"
+          >
+            {paying ? t("paying") : t("payNow")}
+          </button>
         ) : null}
       </Reveal>
 

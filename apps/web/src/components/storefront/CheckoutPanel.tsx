@@ -34,6 +34,8 @@ export function CheckoutPanel() {
   const [district, setDistrict] = useState("");
   const [phone, setPhone] = useState("");
   const [saveAddress, setSaveAddress] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "bkash" | "sslcommerz">("cod");
+  const tOrders = useTranslations("orders");
 
   const loadAddresses = useCallback(async () => {
     const rows = await fetchAddresses();
@@ -100,7 +102,7 @@ export function CheckoutPanel() {
   function quoteBody(id?: string) {
     const selected = id ?? addressId;
     if (selected) {
-      return { address_id: selected, payment_method: "cod" as const };
+      return { address_id: selected, payment_method: paymentMethod };
     }
     return {
       line1,
@@ -108,7 +110,7 @@ export function CheckoutPanel() {
       district: district || undefined,
       phone: phone || undefined,
       country: "BD",
-      payment_method: "cod" as const,
+      payment_method: paymentMethod,
     };
   }
 
@@ -120,6 +122,13 @@ export function CheckoutPanel() {
     setError(null);
     try {
       const order = await placeOrder(quoteBody());
+      if (
+        order.status === "pending_payment" &&
+        (paymentMethod === "bkash" || paymentMethod === "sslcommerz")
+      ) {
+        router.push(`/${locale}/orders/${order.id}?pay=1`);
+        return;
+      }
       router.push(`/${locale}/orders/${order.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("placeFailed"));
@@ -341,6 +350,23 @@ export function CheckoutPanel() {
               {t("notReady")}
             </p>
           )}
+          <fieldset className="mt-md">
+            <legend className="text-sm font-semibold text-ink">{t("paymentMethodTitle")}</legend>
+            <div className="mt-sm flex flex-col gap-2xs text-sm">
+              {(["cod", "bkash", "sslcommerz"] as const).map((method) => (
+                <label key={method} className="flex items-center gap-sm text-muted">
+                  <input
+                    type="radio"
+                    name="payment_method"
+                    value={method}
+                    checked={paymentMethod === method}
+                    onChange={() => setPaymentMethod(method)}
+                  />
+                  {tOrders(`paymentMethod.${method}`)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {quote.place_order_available ? (
             <button
               type="button"
@@ -348,12 +374,18 @@ export function CheckoutPanel() {
               onClick={() => void onPlaceOrder()}
               className="mt-md rounded-sm bg-sage px-md py-sm text-sm font-medium text-white hover:bg-sage-deep disabled:opacity-60"
             >
-              {placing ? t("placing") : t("placeOrder")}
+              {placing
+                ? t("placing")
+                : paymentMethod === "cod"
+                  ? t("placeOrder")
+                  : t("placeOrderPay")}
             </button>
           ) : (
             <p className="mt-sm text-sm text-muted">{t("placeOrderBlocked")}</p>
           )}
-          <p className="mt-sm text-xs text-muted">{t("codNote")}</p>
+          <p className="mt-sm text-xs text-muted">
+            {paymentMethod === "cod" ? t("codNote") : t("prepaidNote")}
+          </p>
         </Reveal>
       ) : null}
     </div>

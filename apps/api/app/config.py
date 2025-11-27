@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     free_shipping_threshold_poisha: int = 300000
     # When a variant has no weight_grams, assume this for quote weight.
     shipping_default_variant_weight_grams: int = 100
+    # Part 23: sandbox payment gateways (no live HTTP in sandbox mode).
+    payment_gateway_mode: str = "sandbox"
+    bkash_app_key: str = "sandbox-bkash-app-key"
+    bkash_app_secret: str = "sandbox-bkash-app-secret"
+    bkash_username: str = "sandbox"
+    bkash_password: str = "sandbox"
+    sslcommerz_store_id: str = "sandbox-ssl-store"
+    sslcommerz_store_password: str = "sandbox-ssl-password"
 
 
 @lru_cache

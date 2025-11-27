@@ -124,10 +124,24 @@
     "ready": "Quote looks ready — you can place the order.",
     "notReady": "Fix stock or address issues before placing an order.",
     "placeOrder": "Place order (COD)",
+    "placeOrderPay": "Place order & pay",
     "placing": "Placing…",
     "placeFailed": "Could not place the order.",
     "placeOrderBlocked": "Resolve blockers before placing the order.",
-    "codNote": "Cash on delivery. The order confirms immediately; pay when it arrives. You can cancel until it ships."
+    "paymentMethodTitle": "Payment",
+    "codNote": "Cash on delivery. The order confirms immediately; pay when it arrives. You can cancel until it ships.",
+    "prepaidNote": "You will be redirected to the sandbox gateway to complete payment. Stock is held for a short time."
+  },
+  "paySandbox": {
+    "title": "Sandbox payment",
+    "lede": "Simulate a {gateway} hosted checkout. No real money moves.",
+    "sandboxBadge": "Sandbox only",
+    "paySuccess": "Mark paid",
+    "payFail": "Cancel payment",
+    "working": "Confirming…",
+    "failed": "Could not validate payment.",
+    "missingToken": "Missing payment token. Start again from your order.",
+    "back": "Back to order"
   },
   "orders": {
     "title": "Your orders",
@@ -155,6 +169,9 @@
     "cancelFailed": "Could not cancel the order.",
     "cancelHint": "You can cancel until the order ships.",
     "reservationHold": "Stock held until {when}.",
+    "payNow": "Pay now",
+    "paying": "Opening gateway…",
+    "payFailed": "Could not start payment.",
     "paymentTitle": "Payment",
     "trackingLine": "{courier} · {tracking}",
     "paymentMethod": {

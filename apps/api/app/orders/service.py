@@ -363,6 +363,25 @@ class OrderService:
             cancel_rate=(cancelled / placed) if placed else 0.0,
         )
 
+    async def confirm_prepaid(
+        self,
+        order: Order,
+        *,
+        actor_user_id: UUID,
+        provider_ref: str,
+        gateway: str,
+    ) -> OrderOut:
+        """Confirm a prepaid order after gateway validation; sets payment_status=paid."""
+        return await self._transition(
+            order,
+            to_status="confirmed",
+            actor_user_id=actor_user_id,
+            source="system",
+            note=f"{gateway} payment validated",
+            mark_paid=True,
+            event_meta={"provider_ref": provider_ref, "gateway": gateway},
+        )
+
     async def _transition(
         self,
         order: Order,
@@ -373,6 +392,8 @@ class OrderService:
         note: str | None,
         courier_name: str | None = None,
         tracking_number: str | None = None,
+        mark_paid: bool = False,
+        event_meta: dict[str, object] | None = None,
     ) -> OrderOut:
         if to_status not in ORDER_STATUSES:
             raise ProblemError(
@@ -411,7 +432,9 @@ class OrderService:
         if to_status == "confirmed":
             order.confirmed_at = now
             order.reservation_expires_at = None
-            if order.payment_method == "cod":
+            if mark_paid:
+                order.payment_status = "paid"
+            elif order.payment_method == "cod":
                 order.payment_status = "cod_pending"
             elif order.payment_status in (None, "pending"):
                 order.payment_status = "pending"
@@ -466,6 +489,7 @@ class OrderService:
                 actor_user_id=actor_user_id,
                 source=source,
                 note=note,
+                meta=event_meta,
             )
         )
         await self.audit.record(
@@ -479,6 +503,7 @@ class OrderService:
                 "source": source,
                 "courier_name": order.courier_name,
                 "tracking_number": order.tracking_number,
+                **(event_meta or {}),
             },
         )
         order = await self.repo.save(order)
