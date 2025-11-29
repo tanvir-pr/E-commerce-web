@@ -155,12 +155,31 @@ def _pending_order(*, method: str = "bkash") -> SimpleNamespace:
     )
 
 
+class FakeEventRepo:
+    def __init__(self) -> None:
+        self.rows: dict[tuple[str, str], SimpleNamespace] = {}
+
+    async def get_by_gateway_event(
+        self, *, gateway: str, gateway_event_id: str
+    ) -> SimpleNamespace | None:
+        return self.rows.get((gateway, gateway_event_id))
+
+    async def try_insert(self, **kwargs: object) -> SimpleNamespace | None:
+        key = (str(kwargs["gateway"]), str(kwargs["gateway_event_id"]))
+        if key in self.rows:
+            return None
+        row = SimpleNamespace(**kwargs)
+        self.rows[key] = row
+        return row
+
+
 def _payment_service(order: SimpleNamespace) -> PaymentService:
     settings = _settings()
     service = PaymentService(FakeSession(), settings=settings)  # type: ignore[arg-type]
     service.orders.repo = FakeRepo(order)  # type: ignore[assignment]
     service.orders.audit = FakeAudit()  # type: ignore[assignment]
     service.orders.inventory = FakeInventory()  # type: ignore[assignment]
+    service.events = FakeEventRepo()  # type: ignore[assignment]
     return service
 
 

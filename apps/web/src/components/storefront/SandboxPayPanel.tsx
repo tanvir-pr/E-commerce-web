@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Reveal } from "@/components/motion/Reveal";
-import { validatePayment } from "@/lib/orders";
 
 export function SandboxPayPanel({
   method,
@@ -21,14 +20,13 @@ export function SandboxPayPanel({
   const locale = useLocale();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
 
   const gatewayLabel =
     method === "sslcommerz"
       ? tOrders("paymentMethod.sslcommerz")
       : tOrders("paymentMethod.bkash");
 
-  async function complete(success: boolean) {
+  function complete(success: boolean) {
     if (!token) {
       setError(t("missingToken"));
       return;
@@ -37,16 +35,14 @@ export function SandboxPayPanel({
       router.push(returnPath || `/${locale}/orders`);
       return;
     }
-    setPending(true);
-    setError(null);
-    try {
-      const status = method === "sslcommerz" ? "VALID" : "Completed";
-      const out = await validatePayment(method, { token, status });
-      router.push(`/${locale}/orders/${out.order_id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("failed"));
-      setPending(false);
-    }
+    // Session-less API return → 303 to order (no CSRF / login cookie required).
+    const status = method === "sslcommerz" ? "VALID" : "Completed";
+    const params = new URLSearchParams({
+      token,
+      status,
+      locale,
+    });
+    window.location.assign(`/api/v1/payments/${encodeURIComponent(method)}/return?${params}`);
   }
 
   return (
@@ -67,17 +63,16 @@ export function SandboxPayPanel({
       <div className="mt-xl flex flex-wrap gap-sm">
         <button
           type="button"
-          disabled={pending || !token}
-          onClick={() => void complete(true)}
+          disabled={!token}
+          onClick={() => complete(true)}
           className="rounded-sm bg-sage px-md py-sm text-sm font-medium text-white hover:bg-sage-deep disabled:opacity-60"
         >
-          {pending ? t("working") : t("paySuccess")}
+          {t("paySuccess")}
         </button>
         <button
           type="button"
-          disabled={pending}
-          onClick={() => void complete(false)}
-          className="rounded-sm border border-line px-md py-sm text-sm text-ink disabled:opacity-60"
+          onClick={() => complete(false)}
+          className="rounded-sm border border-line px-md py-sm text-sm text-ink"
         >
           {t("payFail")}
         </button>

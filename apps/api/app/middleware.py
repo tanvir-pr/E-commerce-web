@@ -14,7 +14,13 @@ from app.security.cookies import CSRF_COOKIE
 
 _REQUEST_ID_RE = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-_CSRF_EXEMPT_PATHS = {"/api/v1/health"}
+_CSRF_EXEMPT_PATHS = {
+    "/api/v1/health",
+    "/api/v1/payments/bkash/webhook",
+    "/api/v1/payments/sslcommerz/webhook",
+    "/api/v1/payments/bkash/return",
+    "/api/v1/payments/sslcommerz/return",
+}
 
 
 def _headers(scope: dict[str, Any]) -> dict[str, str]:
