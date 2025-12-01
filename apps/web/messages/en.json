@@ -185,6 +185,7 @@
       "collected": "Collected",
       "paid": "Paid",
       "cancelled": "Cancelled",
+      "refund_needed": "Refund pending",
       "refunded": "Refunded"
     },
     "status": {

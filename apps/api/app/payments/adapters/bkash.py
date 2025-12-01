@@ -7,7 +7,7 @@ from urllib.parse import quote
 from uuid import UUID, uuid4
 
 from app.config import Settings
-from app.payments.protocol import InitiateResult, ValidateResult
+from app.payments.protocol import InitiateResult, RefundResult, ValidateResult
 from app.payments.tokens import (
     bdt_to_poisha,
     parse_order_id,
@@ -106,3 +106,14 @@ class SandboxBkashGateway:
             amount_poisha=amount_poisha,
             reason=None if ok else f"bKash status not successful: {status or 'missing'}",
         )
+
+    def refund(
+        self,
+        *,
+        provider_ref: str,
+        amount_poisha: int,
+        order_number: str,
+    ) -> RefundResult:
+        _ = (amount_poisha, order_number)
+        ref = provider_ref.strip() or "BKUNKNOWN"
+        return RefundResult(ok=True, refund_ref=f"RF-{ref[:24]}")

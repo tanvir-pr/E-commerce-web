@@ -45,6 +45,7 @@ PAYMENT_STATUSES = frozenset(
         "collected",
         "paid",
         "cancelled",
+        "refund_needed",
         "refunded",
     }
 )

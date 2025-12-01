@@ -185,6 +185,7 @@
       "collected": "আদায় হয়েছে",
       "paid": "পরিশোধিত",
       "cancelled": "বাতিল",
+      "refund_needed": "রিফান্ড পেন্ডিং",
       "refunded": "রিফান্ড"
     },
     "status": {

@@ -382,6 +382,29 @@ class OrderService:
             event_meta={"provider_ref": provider_ref, "gateway": gateway},
         )
 
+    async def confirm_late_prepaid(
+        self,
+        order: Order,
+        *,
+        actor_user_id: UUID,
+        provider_ref: str,
+        gateway: str,
+    ) -> OrderOut:
+        """Revive a cancelled order after late gateway payment + successful re-reserve."""
+        return await self._transition(
+            order,
+            to_status="confirmed",
+            actor_user_id=actor_user_id,
+            source="system",
+            note=f"{gateway} late payment re-reserved",
+            mark_paid=True,
+            event_meta={
+                "provider_ref": provider_ref,
+                "gateway": gateway,
+                "late_payment": True,
+            },
+        )
+
     async def _transition(
         self,
         order: Order,
@@ -403,7 +426,13 @@ class OrderService:
                 PROBLEM_VALIDATION,
             )
         allowed = ALLOWED_TRANSITIONS.get(order.status, frozenset())
-        if to_status not in allowed:
+        late_revive = (
+            source == "system"
+            and order.status == "cancelled"
+            and to_status == "confirmed"
+            and mark_paid
+        )
+        if to_status not in allowed and not late_revive:
             raise ProblemError(
                 422,
                 "Validation error",

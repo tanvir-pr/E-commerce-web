@@ -164,6 +164,9 @@ class FakeEventRepo:
     ) -> SimpleNamespace | None:
         return self.rows.get((gateway, gateway_event_id))
 
+    async def list_by_status(self, status: str, *, limit: int = 100) -> list[SimpleNamespace]:
+        return [r for r in self.rows.values() if r.status == status][:limit]
+
     async def try_insert(self, **kwargs: object) -> SimpleNamespace | None:
         key = (str(kwargs["gateway"]), str(kwargs["gateway_event_id"]))
         if key in self.rows:
@@ -171,6 +174,10 @@ class FakeEventRepo:
         row = SimpleNamespace(**kwargs)
         self.rows[key] = row
         return row
+
+    async def save(self, event: SimpleNamespace) -> SimpleNamespace:
+        self.rows[(str(event.gateway), str(event.gateway_event_id))] = event
+        return event
 
 
 def _payment_service(order: SimpleNamespace) -> PaymentService:

@@ -20,6 +20,13 @@ class ValidateResult:
     reason: str | None = None
 
 
+@dataclass(frozen=True)
+class RefundResult:
+    ok: bool
+    refund_ref: str
+    reason: str | None = None
+
+
 class PaymentGateway(Protocol):
     method: str
 
@@ -35,3 +42,11 @@ class PaymentGateway(Protocol):
     ) -> InitiateResult: ...
 
     def validate(self, payload: dict[str, Any]) -> ValidateResult: ...
+
+    def refund(
+        self,
+        *,
+        provider_ref: str,
+        amount_poisha: int,
+        order_number: str,
+    ) -> RefundResult: ...

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_utils import uuid7
 
 from app.config import Settings, get_settings
+from app.models.order import Order
 from app.models.payment import PaymentEvent
 from app.orders.mailer import NullOrderMailer, OrderMailer
 from app.orders.service import OrderService
@@ -257,6 +258,16 @@ class PaymentService:
                 PROBLEM_VALIDATION,
             )
 
+        if order.status == "cancelled":
+            return await self._handle_late_payment(
+                order,
+                gateway_method=key,
+                result=result,
+                event_id=event_id,
+                source=source,
+                payload=payload,
+            )
+
         if order.status != "pending_payment":
             if order.status == "confirmed" and order.payment_status == "paid":
                 await self._record_event(
@@ -277,6 +288,16 @@ class PaymentService:
                     provider_ref=result.provider_ref,
                     method=key,
                     meta={"idempotent": True, "source": source},
+                )
+            if order.payment_status in {"refund_needed", "refunded"}:
+                return PayValidateOut(
+                    order_id=order.id,
+                    order_number=order.order_number,
+                    status=order.status,
+                    payment_status=order.payment_status,
+                    provider_ref=result.provider_ref,
+                    method=key,
+                    meta={"idempotent": True, "source": source, "late_payment": True},
                 )
             raise ProblemError(
                 422,
@@ -323,6 +344,207 @@ class PaymentService:
             method=key,
             meta={"source": source, "gateway_event_id": event_id},
         )
+
+    async def _handle_late_payment(
+        self,
+        order: Order,
+        *,
+        gateway_method: str,
+        result: ValidateResult,
+        event_id: str,
+        source: str,
+        payload: dict[str, Any],
+    ) -> PayValidateOut:
+        """Payment after cancel/expiry: re-reserve → confirm, else auto-refund."""
+        if order.payment_status == "refunded":
+            await self._record_event(
+                gateway=gateway_method,
+                gateway_event_id=event_id,
+                order_id=order.id,
+                provider_ref=result.provider_ref,
+                amount_poisha=result.amount_poisha,
+                status="refunded",
+                source=source,
+                raw_payload=payload,
+            )
+            return PayValidateOut(
+                order_id=order.id,
+                order_number=order.order_number,
+                status=order.status,
+                payment_status=order.payment_status,
+                provider_ref=result.provider_ref,
+                method=gateway_method,
+                meta={
+                    "idempotent": True,
+                    "source": source,
+                    "late_payment": "refunded",
+                },
+            )
+
+        inserted = await self._record_event(
+            gateway=gateway_method,
+            gateway_event_id=event_id,
+            order_id=order.id,
+            provider_ref=result.provider_ref,
+            amount_poisha=result.amount_poisha,
+            status="refund_needed",
+            source=source,
+            raw_payload=payload,
+        )
+        if inserted is None:
+            order = await self.orders.repo.require(order.id)
+            return PayValidateOut(
+                order_id=order.id,
+                order_number=order.order_number,
+                status=order.status,
+                payment_status=order.payment_status,
+                provider_ref=result.provider_ref,
+                method=gateway_method,
+                meta={"idempotent": True, "source": source, "late_payment": True},
+            )
+
+        try:
+            await self.orders.inventory.reserve_for_order(
+                order,
+                list(order.items),
+                actor_user_id=order.user_id,
+            )
+        except ProblemError as exc:
+            if exc.status != 422:
+                raise
+            return await self._auto_refund_late(
+                order,
+                event=inserted,
+                gateway_method=gateway_method,
+                provider_ref=result.provider_ref,
+                amount_poisha=result.amount_poisha,
+                source=source,
+                event_id=event_id,
+            )
+
+        inserted.status = "processed"
+        await self.events.save(inserted)
+        out = await self.orders.confirm_late_prepaid(
+            order,
+            actor_user_id=order.user_id,
+            provider_ref=result.provider_ref,
+            gateway=gateway_method,
+        )
+        return PayValidateOut(
+            order_id=out.id,
+            order_number=out.order_number,
+            status=out.status,
+            payment_status=out.payment_status,
+            provider_ref=result.provider_ref,
+            method=gateway_method,
+            meta={
+                "source": source,
+                "gateway_event_id": event_id,
+                "late_payment": "re_reserved",
+            },
+        )
+
+    async def _auto_refund_late(
+        self,
+        order: Order,
+        *,
+        event: PaymentEvent,
+        gateway_method: str,
+        provider_ref: str,
+        amount_poisha: int,
+        source: str,
+        event_id: str,
+    ) -> PayValidateOut:
+        order.payment_status = "refund_needed"
+        await self.orders.repo.save(order)
+        gateway = get_gateway(gateway_method, self.settings)
+        refund = gateway.refund(
+            provider_ref=provider_ref,
+            amount_poisha=amount_poisha,
+            order_number=order.order_number,
+        )
+        if refund.ok:
+            order.payment_status = "refunded"
+            await self.orders.repo.save(order)
+            event.status = "refunded"
+            raw = dict(event.raw_payload or {})
+            raw["refund_ref"] = refund.refund_ref
+            event.raw_payload = raw
+            await self.events.save(event)
+            late = "refunded"
+        else:
+            event.status = "refund_needed"
+            await self.events.save(event)
+            late = "refund_needed"
+        return PayValidateOut(
+            order_id=order.id,
+            order_number=order.order_number,
+            status=order.status,
+            payment_status=order.payment_status,
+            provider_ref=provider_ref,
+            method=gateway_method,
+            meta={
+                "source": source,
+                "gateway_event_id": event_id,
+                "late_payment": late,
+                "refund_ref": refund.refund_ref if refund.ok else None,
+            },
+        )
+
+    async def reconcile_late_payments(self) -> dict[str, int]:
+        """Retry sandbox refunds for leftover refund_needed events (nightly)."""
+        rows = await self.events.list_by_status("refund_needed", limit=200)
+        refunded = 0
+        revived = 0
+        for event in rows:
+            order = await self.orders.repo.require(event.order_id)
+            method = event.gateway
+            provider_ref = event.provider_ref or ""
+            if order.status == "cancelled":
+                try:
+                    await self.orders.inventory.reserve_for_order(
+                        order,
+                        list(order.items),
+                        actor_user_id=order.user_id,
+                    )
+                except ProblemError as exc:
+                    if exc.status != 422:
+                        raise
+                    out = await self._auto_refund_late(
+                        order,
+                        event=event,
+                        gateway_method=method,
+                        provider_ref=provider_ref,
+                        amount_poisha=event.amount_poisha,
+                        source="reconcile",
+                        event_id=event.gateway_event_id,
+                    )
+                    if out.payment_status == "refunded":
+                        refunded += 1
+                    continue
+                event.status = "processed"
+                await self.events.save(event)
+                await self.orders.confirm_late_prepaid(
+                    order,
+                    actor_user_id=order.user_id,
+                    provider_ref=provider_ref,
+                    gateway=method,
+                )
+                revived += 1
+                continue
+            if order.payment_status == "refund_needed":
+                out = await self._auto_refund_late(
+                    order,
+                    event=event,
+                    gateway_method=method,
+                    provider_ref=provider_ref,
+                    amount_poisha=event.amount_poisha,
+                    source="reconcile",
+                    event_id=event.gateway_event_id,
+                )
+                if out.payment_status == "refunded":
+                    refunded += 1
+        return {"refunded": refunded, "revived": revived, "scanned": len(rows)}
 
     async def _record_event(
         self,

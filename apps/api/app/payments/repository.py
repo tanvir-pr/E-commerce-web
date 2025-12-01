@@ -25,6 +25,15 @@ class PaymentEventRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_by_status(self, status: str, *, limit: int = 100) -> list[PaymentEvent]:
+        result = await self.session.execute(
+            select(PaymentEvent)
+            .where(PaymentEvent.status == status)
+            .order_by(PaymentEvent.created_at.asc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
     async def try_insert(
         self,
         *,
@@ -60,3 +69,8 @@ class PaymentEventRepository:
         if row is not None:
             await self.session.flush()
         return row
+
+    async def save(self, event: PaymentEvent) -> PaymentEvent:
+        self.session.add(event)
+        await self.session.flush()
+        return event
