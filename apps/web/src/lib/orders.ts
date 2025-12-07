@@ -194,6 +194,50 @@ export async function startOrderPayment(id: string): Promise<PayStart> {
   return okJson(await apiPost(`/api/v1/orders/${id}/pay`, {}, csrf));
 }
 
+export type ReturnRequest = {
+  id: string;
+  order_id: string;
+  order_number?: string | null;
+  status: string;
+  reason_code: string;
+  customer_note: string | null;
+  staff_note: string | null;
+  refund_poisha: number;
+  items: Array<{ id: string; order_item_id: string; qty: number; unit_price_poisha: number }>;
+  created_at: string;
+};
+
+export async function createReturnRequest(
+  orderId: string,
+  body: {
+    reason_code: string;
+    customer_note?: string;
+    items: Array<{ order_item_id: string; qty: number }>;
+  },
+): Promise<ReturnRequest> {
+  const csrf = await fetchCsrfToken();
+  return okJson(await apiPost(`/api/v1/orders/${orderId}/returns`, body, csrf));
+}
+
+export async function fetchAdminReturns(status = "pending"): Promise<ReturnRequest[]> {
+  const response = await fetch(`/api/v1/admin/returns?status=${encodeURIComponent(status)}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const body = await okJson<{ items: ReturnRequest[] }>(response);
+  return body.items;
+}
+
+export async function approveAdminReturn(id: string, staffNote?: string): Promise<ReturnRequest> {
+  const csrf = await fetchCsrfToken();
+  return okJson(await apiPost(`/api/v1/admin/returns/${id}/approve`, { staff_note: staffNote }, csrf));
+}
+
+export async function rejectAdminReturn(id: string, staffNote: string): Promise<ReturnRequest> {
+  const csrf = await fetchCsrfToken();
+  return okJson(await apiPost(`/api/v1/admin/returns/${id}/reject`, { staff_note: staffNote }, csrf));
+}
+
 export async function validatePayment(
   method: string,
   body: Record<string, unknown>,

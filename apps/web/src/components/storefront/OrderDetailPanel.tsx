@@ -6,7 +6,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { Reveal } from "@/components/motion/Reveal";
 import { fetchMe, type Me } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
-import { cancelMyOrder, fetchMyOrder, startOrderPayment, type Order } from "@/lib/orders";
+import {
+  cancelMyOrder,
+  createReturnRequest,
+  fetchMyOrder,
+  startOrderPayment,
+  type Order,
+} from "@/lib/orders";
 
 type TrackStep = {
   key: string;
@@ -76,6 +82,8 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const [returnDone, setReturnDone] = useState(false);
 
   const load = useCallback(async () => {
     setOrder(await fetchMyOrder(orderId));
@@ -150,6 +158,29 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
     }
   }
 
+  async function onRequestReturn() {
+    if (!order) {
+      return;
+    }
+    const reason = window.prompt(t("returnReasonPrompt"), "defective")?.trim();
+    if (!reason) {
+      return;
+    }
+    setReturning(true);
+    setError(null);
+    try {
+      await createReturnRequest(order.id, {
+        reason_code: reason,
+        items: order.items.map((item) => ({ order_item_id: item.id, qty: item.qty })),
+      });
+      setReturnDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("returnFailed"));
+    } finally {
+      setReturning(false);
+    }
+  }
+
   if (me === undefined) {
     return <p className="text-sm text-muted">{t("loading")}</p>;
   }
@@ -215,6 +246,27 @@ export function OrderDetailPanel({ orderId }: { orderId: string }) {
             {paying ? t("paying") : t("payNow")}
           </button>
         ) : null}
+        <p className="mt-md flex flex-wrap gap-sm text-sm">
+          <a
+            href={`/api/v1/orders/${order.id}/invoice.pdf`}
+            className="text-sage underline"
+          >
+            {t("downloadInvoice")}
+          </a>
+        </p>
+        {order.status === "delivered" &&
+        (order.payment_status === "paid" || order.payment_status === "collected") &&
+        !returnDone ? (
+          <button
+            type="button"
+            disabled={returning}
+            onClick={() => void onRequestReturn()}
+            className="mt-sm rounded-sm border border-line px-md py-sm text-sm text-ink disabled:opacity-60"
+          >
+            {returning ? t("returnWorking") : t("requestReturn")}
+          </button>
+        ) : null}
+        {returnDone ? <p className="mt-sm text-sm text-ok">{t("returnSubmitted")}</p> : null}
       </Reveal>
 
       <Reveal>

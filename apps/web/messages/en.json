@@ -172,6 +172,12 @@
     "payNow": "Pay now",
     "paying": "Opening gateway…",
     "payFailed": "Could not start payment.",
+    "downloadInvoice": "Download invoice (PDF)",
+    "requestReturn": "Request return",
+    "returnWorking": "Submitting return…",
+    "returnSubmitted": "Return request submitted. We will review it soon.",
+    "returnFailed": "Could not submit the return.",
+    "returnReasonPrompt": "Reason code (wrong_item, defective, unopened, other)",
     "paymentTitle": "Payment",
     "trackingLine": "{courier} · {tracking}",
     "paymentMethod": {
@@ -215,6 +221,16 @@
     "filter": {
       "all": "All"
     }
+  },
+  "adminReturns": {
+    "hint": "Approve to restock + refund and write ledger entries. Reject needs a note.",
+    "refresh": "Refresh",
+    "loadFailed": "Could not load returns.",
+    "saveFailed": "Could not update return.",
+    "empty": "No pending return requests.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectPrompt": "Rejection note (required)"
   },
   "adminCourier": {
     "hint": "Pipeline: pack → ship → deliver, or fail / return with restock.",
@@ -525,6 +541,7 @@
       "carts": "Carts",
       "orders": "Orders",
       "courier": "Courier",
+      "returns": "Returns",
       "customers": "Customers",
       "coupons": "Coupons",
       "support": "Support",

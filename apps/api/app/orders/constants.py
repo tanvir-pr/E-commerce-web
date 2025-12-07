@@ -18,6 +18,8 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "confirmed": frozenset({"shipped", "cancelled"}),
     "shipped": frozenset({"delivered", "delivery_failed", "returned"}),
     "delivery_failed": frozenset({"shipped", "returned"}),
+    # Part 26: customer RMA after delivery (staff/system approve).
+    "delivered": frozenset({"returned"}),
 }
 
 # Part 19: customer + staff may cancel until the parcel ships.

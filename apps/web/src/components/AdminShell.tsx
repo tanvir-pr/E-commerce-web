@@ -8,6 +8,7 @@ const NAV = [
   { key: "carts", href: "/carts" },
   { key: "orders", href: "/orders" },
   { key: "courier", href: "/courier" },
+  { key: "returns", href: "/returns" },
   { key: "customers", href: "/customers" },
   { key: "coupons", href: "/coupons" },
   { key: "support", href: "/support" },

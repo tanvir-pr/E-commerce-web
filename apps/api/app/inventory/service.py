@@ -387,6 +387,59 @@ class InventoryService:
         )
         return restored
 
+    async def restock_order_items(
+        self,
+        order: Order,
+        lines: list[tuple[UUID, int]],
+        *,
+        actor_user_id: UUID | None,
+        note: str | None = None,
+    ) -> int:
+        """Restock specific variant quantities from consumed allocations (RMA)."""
+        needed: dict[UUID, int] = {}
+        for variant_id, qty in lines:
+            if qty <= 0:
+                continue
+            needed[variant_id] = needed.get(variant_id, 0) + qty
+        if not needed:
+            return 0
+        rows = await self.repo.list_restockable_allocations(order.id, for_update=True)
+        now = datetime.now(UTC)
+        restored = 0
+        for row in rows:
+            want = needed.get(row.variant_id, 0)
+            if want <= 0:
+                continue
+            take = min(want, row.qty)
+            batch = await self.repo.require_batch(row.batch_id)
+            batch.qty_on_hand += take
+            await self.repo.save_batch(batch)
+            await self.repo.add_movement(
+                StockMovement(
+                    variant_id=row.variant_id,
+                    batch_id=row.batch_id,
+                    qty_delta=take,
+                    reason="return_restock",
+                    note=note or f"RMA {order.order_number}",
+                    actor_user_id=actor_user_id,
+                )
+            )
+            if take == row.qty:
+                row.restocked_at = now
+            else:
+                row.qty -= take
+            await self.repo.save_allocation(row)
+            needed[row.variant_id] = want - take
+            restored += take
+        await self.audit.record(
+            action="inventory.rma_restocked",
+            actor_user_id=actor_user_id,
+            subject_type="order",
+            subject_id=str(order.id),
+            meta={"units": restored, "order_number": order.order_number},
+        )
+        return restored
+
     async def _plan_fefo(
         self, variant_id: UUID, qty: int, *, for_update: bool = False
     ) -> tuple[list[FefoAllocationLine], int]:

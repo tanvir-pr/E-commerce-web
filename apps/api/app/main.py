@@ -32,6 +32,8 @@ from app.payments.router import router as payments_router
 from app.problems import PROBLEM_INTERNAL, PROBLEM_VALIDATION, ProblemError, problem_payload
 from app.products.admin_router import router as products_admin_router
 from app.products.router import router as products_router
+from app.returns.admin_router import router as returns_admin_router
+from app.returns.router import router as returns_router
 from app.search.admin_router import router as search_admin_router
 from app.search.client import MeilisearchClient
 from app.search.router import router as search_router
@@ -75,7 +77,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.25.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.26.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -144,6 +146,7 @@ def create_app() -> FastAPI:
     app.include_router(checkout_router, prefix="/api/v1")
     app.include_router(orders_router, prefix="/api/v1")
     app.include_router(payments_router, prefix="/api/v1")
+    app.include_router(returns_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(catalog_admin_router, prefix="/api/v1")
     app.include_router(products_admin_router, prefix="/api/v1")
@@ -153,6 +156,7 @@ def create_app() -> FastAPI:
     app.include_router(carts_admin_router, prefix="/api/v1")
     app.include_router(shipping_admin_router, prefix="/api/v1")
     app.include_router(orders_admin_router, prefix="/api/v1")
+    app.include_router(returns_admin_router, prefix="/api/v1")
     return app
 
 

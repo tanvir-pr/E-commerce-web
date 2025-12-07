@@ -172,6 +172,12 @@
     "payNow": "এখনই পেমেন্ট",
     "paying": "গেটওয়ে খুলছে…",
     "payFailed": "পেমেন্ট শুরু করা যায়নি।",
+    "downloadInvoice": "ইনভয়েস ডাউনলোড (PDF)",
+    "requestReturn": "রিটার্ন রিকোয়েস্ট",
+    "returnWorking": "রিটার্ন জমা হচ্ছে…",
+    "returnSubmitted": "রিটার্ন রিকোয়েস্ট জমা হয়েছে। শীঘ্রই রিভিউ হবে।",
+    "returnFailed": "রিটার্ন জমা দেওয়া যায়নি।",
+    "returnReasonPrompt": "কারণ কোড (wrong_item, defective, unopened, other)",
     "paymentTitle": "পেমেন্ট",
     "trackingLine": "{courier} · {tracking}",
     "paymentMethod": {
@@ -215,6 +221,16 @@
     "filter": {
       "all": "সব"
     }
+  },
+  "adminReturns": {
+    "hint": "অ্যাপ্রুভ করলে স্টক ফেরত + রিফান্ড ও লেজার এন্ট্রি। রিজেক্টে নোট লাগে।",
+    "refresh": "রিফ্রেশ",
+    "loadFailed": "রিটার্ন লোড হয়নি।",
+    "saveFailed": "রিটার্ন আপডেট হয়নি।",
+    "empty": "কোনো পেন্ডিং রিটার্ন নেই।",
+    "approve": "অ্যাপ্রুভ",
+    "reject": "রিজেক্ট",
+    "rejectPrompt": "রিজেক্ট নোট (প্রয়োজনীয়)"
   },
   "adminCourier": {
     "hint": "পাইপলাইন: প্যাক → শিপ → ডেলিভার, অথবা ফেল / রিটার্ন (স্টক ফেরত)।",
@@ -525,6 +541,7 @@
       "carts": "কার্টস",
       "orders": "অর্ডার",
       "courier": "Courier",
+      "returns": "রিটার্ন",
       "customers": "Customers",
       "coupons": "Coupons",
       "support": "Support",

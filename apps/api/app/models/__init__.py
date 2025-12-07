@@ -9,6 +9,12 @@ from app.models.order import Order, OrderEvent, OrderItem
 from app.models.payment import PaymentEvent
 from app.models.product import Product, ProductAttribute, ProductImage, ProductVariant
 from app.models.reservation import StockReservationAllocation
+from app.models.returns import (
+    LedgerEntry,
+    ReturnRequest,
+    ReturnRequestItem,
+    ReturnRequestPhoto,
+)
 from app.models.role import Role, UserRole
 from app.models.shipping import DeliveryWeightTier, DeliveryZone
 from app.models.staff import RecoveryCode, StaffPermission
@@ -26,6 +32,7 @@ __all__ = [
     "DeliveryWeightTier",
     "DeliveryZone",
     "EmailVerificationToken",
+    "LedgerEntry",
     "Order",
     "OrderEvent",
     "OrderItem",
@@ -37,6 +44,9 @@ __all__ = [
     "ProductVariant",
     "RecoveryCode",
     "RefreshToken",
+    "ReturnRequest",
+    "ReturnRequestItem",
+    "ReturnRequestPhoto",
     "Role",
     "StaffPermission",
     "StockBatch",

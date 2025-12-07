@@ -16,6 +16,9 @@ class MediaStorage:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
+    def return_photo_relative(self, rma_id: UUID, photo_id: UUID, ext: str) -> str:
+        return f"returns/{rma_id}/{photo_id}.{ext.lstrip('.')}"
+
     def relative_url(self, relative_path: str) -> str:
         return f"{self.url_path}/{relative_path.replace(chr(92), '/')}"
 

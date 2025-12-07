@@ -26,5 +26,16 @@ strict_optional = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["arq", "arq.*", "uuid_utils", "uuid_utils.*", "pyotp", "pyotp.*", "segno", "segno.*"]
+module = [
+    "arq",
+    "arq.*",
+    "uuid_utils",
+    "uuid_utils.*",
+    "pyotp",
+    "pyotp.*",
+    "segno",
+    "segno.*",
+    "reportlab",
+    "reportlab.*",
+]
 ignore_missing_imports = true
