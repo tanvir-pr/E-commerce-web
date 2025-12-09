@@ -50,6 +50,35 @@ class FakeShipping:
         )
 
 
+class FakeCoupons:
+    def __init__(self, discount_poisha: int = 0, *, ok: bool = True, message: str | None = None) -> None:
+        self.discount_poisha = discount_poisha
+        self.ok = ok
+        self.message = message
+
+    async def apply_to_cart(self, code: str | None, **_kwargs: object) -> SimpleNamespace:
+        raw = (code or "").strip()
+        if not raw:
+            return SimpleNamespace(
+                ok=True, code=None, coupon_id=None, discount_poisha=0, message=None
+            )
+        if not self.ok:
+            return SimpleNamespace(
+                ok=False,
+                code=raw.upper(),
+                coupon_id=None,
+                discount_poisha=0,
+                message=self.message or "Invalid coupon",
+            )
+        return SimpleNamespace(
+            ok=True,
+            code=raw.upper(),
+            coupon_id=uuid4(),
+            discount_poisha=self.discount_poisha,
+            message=None,
+        )
+
+
 def _cart(*, qty: int = 1, available: int | None = 5) -> CartOut:
     variant_id = uuid4()
     product_id = uuid4()
@@ -88,11 +117,13 @@ def _service(
     user: SimpleNamespace | None,
     cart: CartOut,
     address: SimpleNamespace | None = None,
+    coupons: FakeCoupons | None = None,
 ) -> CheckoutService:
     service = CheckoutService(session=SimpleNamespace())  # type: ignore[arg-type]
     service.users = FakeUsers(user)  # type: ignore[assignment]
     service.carts = FakeCarts(cart)  # type: ignore[assignment]
     service.shipping = FakeShipping()  # type: ignore[assignment]
+    service.coupons = coupons or FakeCoupons()  # type: ignore[assignment]
     service.addresses = FakeAddresses(
         address
         or SimpleNamespace(
@@ -194,3 +225,53 @@ async def test_quote_not_ready_when_stock_short() -> None:
     assert quote.ready is False
     assert "stock" in quote.blockers
     assert quote.stock[0].ok is False
+
+
+@pytest.mark.asyncio
+async def test_quote_applies_coupon_discount() -> None:
+    user = SimpleNamespace(
+        id=uuid4(),
+        deleted_at=None,
+        email_verified_at=datetime.now(UTC),
+        phone_verified_at=None,
+    )
+    service = _service(
+        user=user,
+        cart=_cart(qty=1, available=10),
+        coupons=FakeCoupons(discount_poisha=5000),
+    )
+    quote = await service.quote(
+        CheckoutQuoteIn(
+            line1="12 Road", city="Dhaka", district="Dhaka", coupon_code="SAVE5"
+        ),
+        user_id=user.id,
+        guest_token=None,
+    )
+    assert quote.discount_poisha == 5000
+    assert quote.total_poisha == 145000 + 6000 - 5000
+    assert quote.coupon_code == "SAVE5"
+
+
+@pytest.mark.asyncio
+async def test_quote_soft_fails_invalid_coupon() -> None:
+    user = SimpleNamespace(
+        id=uuid4(),
+        deleted_at=None,
+        email_verified_at=datetime.now(UTC),
+        phone_verified_at=None,
+    )
+    service = _service(
+        user=user,
+        cart=_cart(qty=1, available=10),
+        coupons=FakeCoupons(ok=False, message="Coupon has expired."),
+    )
+    quote = await service.quote(
+        CheckoutQuoteIn(
+            line1="12 Road", city="Dhaka", district="Dhaka", coupon_code="OLD"
+        ),
+        user_id=user.id,
+        guest_token=None,
+    )
+    assert quote.ready is True
+    assert quote.discount_poisha == 0
+    assert quote.coupon_message == "Coupon has expired."

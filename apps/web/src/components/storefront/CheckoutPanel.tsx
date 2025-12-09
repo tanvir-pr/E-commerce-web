@@ -35,6 +35,7 @@ export function CheckoutPanel() {
   const [phone, setPhone] = useState("");
   const [saveAddress, setSaveAddress] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "bkash" | "sslcommerz">("cod");
+  const [couponCode, setCouponCode] = useState("");
   const tOrders = useTranslations("orders");
 
   const loadAddresses = useCallback(async () => {
@@ -78,14 +79,16 @@ export function CheckoutPanel() {
     setError(null);
     try {
       const id = nextAddressId ?? addressId;
+      const coupon = couponCode.trim() || undefined;
       const body = id
-        ? { address_id: id }
+        ? { address_id: id, coupon_code: coupon }
         : {
             line1,
             city,
             district: district || undefined,
             phone: phone || undefined,
             country: "BD",
+            coupon_code: coupon,
           };
       if (!id && (!line1.trim() || !city.trim())) {
         throw new Error(t("addressRequired"));
@@ -101,8 +104,13 @@ export function CheckoutPanel() {
 
   function quoteBody(id?: string) {
     const selected = id ?? addressId;
+    const coupon = couponCode.trim() || undefined;
     if (selected) {
-      return { address_id: selected, payment_method: paymentMethod };
+      return {
+        address_id: selected,
+        payment_method: paymentMethod,
+        coupon_code: coupon,
+      };
     }
     return {
       line1,
@@ -111,6 +119,7 @@ export function CheckoutPanel() {
       phone: phone || undefined,
       country: "BD",
       payment_method: paymentMethod,
+      coupon_code: coupon,
     };
   }
 
@@ -239,6 +248,17 @@ export function CheckoutPanel() {
           <p className="mt-sm text-sm text-muted">{t("noAddresses")}</p>
         )}
 
+        <label className="mt-md flex max-w-sm flex-col gap-2xs text-sm">
+          <span className="text-muted">{t("couponCode")}</span>
+          <input
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+            placeholder={t("couponPlaceholder")}
+            className="rounded-sm border border-line px-sm py-2xs"
+            autoComplete="off"
+          />
+        </label>
+
         {addresses.length > 0 ? (
           <button
             type="button"
@@ -336,6 +356,20 @@ export function CheckoutPanel() {
               </span>
               <span>{formatBdt(quote.shipping_poisha)}</span>
             </p>
+            {quote.discount_poisha > 0 ? (
+              <p className="flex justify-between text-ok">
+                <span>
+                  {t("discount")}
+                  {quote.coupon_code ? ` · ${quote.coupon_code}` : ""}
+                </span>
+                <span>−{formatBdt(quote.discount_poisha)}</span>
+              </p>
+            ) : null}
+            {quote.coupon_message ? (
+              <p role="status" className="text-sm text-danger">
+                {quote.coupon_message}
+              </p>
+            ) : null}
             <p className="flex justify-between text-base font-medium text-ink">
               <span>{t("total")}</span>
               <span>{formatBdt(quote.total_poisha)}</span>

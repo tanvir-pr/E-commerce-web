@@ -16,6 +16,7 @@ from app.checkout.schemas import (
     CheckoutQuoteOut,
     CheckoutStockLineOut,
 )
+from app.coupons.service import CouponService
 from app.problems import (
     PROBLEM_CONTACT_UNVERIFIED,
     PROBLEM_UNAUTHORIZED,
@@ -35,6 +36,7 @@ class CheckoutService:
         self.shipping = ShippingService(session)
         self.users = UserRepository(session)
         self.addresses = AddressRepository(session)
+        self.coupons = CouponService(session)
 
     async def quote(
         self,
@@ -42,6 +44,7 @@ class CheckoutService:
         *,
         user_id: UUID,
         guest_token: str | None,
+        strict_coupon: bool = False,
     ) -> CheckoutQuoteOut:
         user = await self.users.get_by_id(user_id)
         if user is None or user.deleted_at is not None:
@@ -95,6 +98,13 @@ class CheckoutService:
 
         merchandise = cart.subtotal_poisha
         ship_poisha = shipping.charge_poisha
+        applied = await self.coupons.apply_to_cart(
+            body.coupon_code,
+            cart=cart,
+            user_id=user_id,
+            strict=strict_coupon,
+        )
+        discount = applied.discount_poisha if applied.ok else 0
         ready = contact.ok and stock_ok and bool(cart.items)
 
         return CheckoutQuoteOut(
@@ -105,7 +115,13 @@ class CheckoutService:
             contact=contact,
             merchandise_subtotal_poisha=merchandise,
             shipping_poisha=ship_poisha,
-            total_poisha=merchandise + ship_poisha,
+            discount_poisha=discount,
+            total_poisha=max(0, merchandise + ship_poisha - discount),
+            coupon_code=applied.code if applied.ok and discount > 0 else (
+                (body.coupon_code or "").strip().upper() or None
+            ),
+            coupon_id=applied.coupon_id if applied.ok and discount > 0 else None,
+            coupon_message=None if applied.ok else applied.message,
             ready=ready,
             blockers=blockers,
             quoted_at=datetime.now(UTC),

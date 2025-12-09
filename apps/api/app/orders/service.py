@@ -13,6 +13,7 @@ from app.cart.service import CartService
 from app.checkout.schemas import CheckoutQuoteIn
 from app.checkout.service import CheckoutService
 from app.config import Settings, get_settings
+from app.coupons.service import CouponService
 from app.inventory.service import InventoryService
 from app.models.order import Order, OrderEvent, OrderItem
 from app.orders.constants import (
@@ -75,6 +76,7 @@ class OrderService:
         self.checkout = CheckoutService(session)
         self.carts = CartService(session)
         self.inventory = InventoryService(session)
+        self.coupons = CouponService(session)
         self.audit = AuditService(session)
 
     async def place(
@@ -103,9 +105,13 @@ class OrderService:
             country=body.country,
             phone=body.phone,
             label=body.label,
+            coupon_code=body.coupon_code,
         )
         quote = await self.checkout.quote(
-            quote_body, user_id=user_id, guest_token=guest_token
+            quote_body,
+            user_id=user_id,
+            guest_token=guest_token,
+            strict_coupon=True,
         )
         if not quote.ready:
             raise ProblemError(
@@ -125,7 +131,10 @@ class OrderService:
             currency=quote.currency,
             merchandise_subtotal_poisha=quote.merchandise_subtotal_poisha,
             shipping_poisha=quote.shipping_poisha,
+            discount_poisha=quote.discount_poisha,
             total_poisha=quote.total_poisha,
+            coupon_id=quote.coupon_id,
+            coupon_code=quote.coupon_code if quote.discount_poisha > 0 else None,
             shipping_zone_id=quote.shipping.zone_id,
             shipping_zone_slug=quote.shipping.zone_slug,
             shipping_zone_name=quote.shipping.zone_name,
@@ -137,6 +146,13 @@ class OrderService:
             placed_at=now,
         )
         order = await self.repo.add(order)
+        if quote.coupon_id is not None and quote.discount_poisha > 0:
+            await self.coupons.record_redemption(
+                coupon_id=quote.coupon_id,
+                order_id=order.id,
+                user_id=user_id,
+                discount_poisha=quote.discount_poisha,
+            )
         for item in quote.cart.items:
             await self.repo.add_item(
                 OrderItem(
@@ -191,6 +207,8 @@ class OrderService:
             meta={
                 "order_number": order.order_number,
                 "total_poisha": order.total_poisha,
+                "discount_poisha": order.discount_poisha,
+                "coupon_code": order.coupon_code,
                 "reserved_units": reserved,
                 "payment_method": method,
                 "cod_auto_confirmed": method == "cod" and self.settings.cod_auto_confirm,
@@ -611,7 +629,9 @@ class OrderService:
             currency=order.currency,
             merchandise_subtotal_poisha=order.merchandise_subtotal_poisha,
             shipping_poisha=order.shipping_poisha,
+            discount_poisha=int(getattr(order, "discount_poisha", 0) or 0),
             total_poisha=order.total_poisha,
+            coupon_code=getattr(order, "coupon_code", None),
             shipping_zone_slug=order.shipping_zone_slug,
             shipping_zone_name=order.shipping_zone_name,
             total_weight_grams=order.total_weight_grams,

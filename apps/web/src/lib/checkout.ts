@@ -35,8 +35,12 @@ export type CheckoutQuote = {
   };
   merchandise_subtotal_poisha: number;
   shipping_poisha: number;
+  discount_poisha: number;
   total_poisha: number;
   currency: string;
+  coupon_code: string | null;
+  coupon_id: string | null;
+  coupon_message: string | null;
   ready: boolean;
   blockers: string[];
   quoted_at: string;
@@ -53,6 +57,7 @@ export type CheckoutQuoteInput = {
   country?: string;
   phone?: string;
   label?: string;
+  coupon_code?: string;
 };
 
 async function okJson<T>(response: Response): Promise<T> {

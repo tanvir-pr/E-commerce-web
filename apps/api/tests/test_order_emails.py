@@ -280,7 +280,10 @@ async def test_prepaid_place_emails_pending_payment() -> None:
                 currency=getattr(order, "currency", "BDT"),
                 merchandise_subtotal_poisha=order.merchandise_subtotal_poisha,  # type: ignore[attr-defined]
                 shipping_poisha=order.shipping_poisha,  # type: ignore[attr-defined]
+                discount_poisha=getattr(order, "discount_poisha", 0),
                 total_poisha=order.total_poisha,  # type: ignore[attr-defined]
+                coupon_id=getattr(order, "coupon_id", None),
+                coupon_code=getattr(order, "coupon_code", None),
                 shipping_zone_slug=getattr(order, "shipping_zone_slug", None),
                 shipping_zone_name=getattr(order, "shipping_zone_name", None),
                 total_weight_grams=getattr(order, "total_weight_grams", 0),

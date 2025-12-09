@@ -21,6 +21,7 @@ from app.catalog.admin_router import router as catalog_admin_router
 from app.catalog.router import router as catalog_router
 from app.checkout.router import router as checkout_router
 from app.config import get_settings
+from app.coupons.admin_router import router as coupons_admin_router
 from app.health import router as health_router
 from app.inventory.router import router as inventory_admin_router
 from app.logging_config import current_request_id, setup_logging
@@ -77,7 +78,7 @@ def create_app() -> FastAPI:
         await app.state.redis.aclose()
         await engine.dispose()
 
-    app = FastAPI(title="Store API", version="0.26.0", lifespan=lifespan)
+    app = FastAPI(title="Store API", version="0.27.0", lifespan=lifespan)
 
     @app.exception_handler(ProblemError)
     async def handle_problem(_request: Request, exc: ProblemError) -> JSONResponse:
@@ -157,6 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(shipping_admin_router, prefix="/api/v1")
     app.include_router(orders_admin_router, prefix="/api/v1")
     app.include_router(returns_admin_router, prefix="/api/v1")
+    app.include_router(coupons_admin_router, prefix="/api/v1")
     return app
 
 

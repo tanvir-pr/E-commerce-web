@@ -50,7 +50,9 @@ class OrderOut(BaseModel):
     currency: str
     merchandise_subtotal_poisha: int
     shipping_poisha: int
+    discount_poisha: int = 0
     total_poisha: int
+    coupon_code: str | None = None
     shipping_zone_slug: str | None
     shipping_zone_name: str | None
     total_weight_grams: int
@@ -108,6 +110,7 @@ class PlaceOrderIn(BaseModel):
     phone: str | None = Field(default=None, max_length=32)
     label: str | None = Field(default=None, max_length=64)
     payment_method: str | None = Field(default="cod", max_length=32)
+    coupon_code: str | None = Field(default=None, max_length=64)
 
 
 class TransitionIn(BaseModel):

@@ -45,6 +45,8 @@ export type Order = {
   currency: string;
   merchandise_subtotal_poisha: number;
   shipping_poisha: number;
+  discount_poisha?: number;
+  coupon_code?: string | null;
   total_poisha: number;
   shipping_zone_slug: string | null;
   shipping_zone_name: string | null;

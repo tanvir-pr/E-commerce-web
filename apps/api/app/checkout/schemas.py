@@ -20,6 +20,7 @@ class CheckoutQuoteIn(BaseModel):
     country: str = Field(default="BD", min_length=2, max_length=2)
     phone: str | None = Field(default=None, max_length=32)
     label: str | None = Field(default=None, max_length=64)
+    coupon_code: str | None = Field(default=None, max_length=64)
 
 
 class CheckoutStockLineOut(BaseModel):
@@ -57,8 +58,12 @@ class CheckoutQuoteOut(BaseModel):
     contact: CheckoutContactOut
     merchandise_subtotal_poisha: int
     shipping_poisha: int
+    discount_poisha: int = 0
     total_poisha: int
     currency: str = "BDT"
+    coupon_code: str | None = None
+    coupon_id: UUID | None = None
+    coupon_message: str | None = None
     ready: bool
     blockers: list[str]
     quoted_at: datetime

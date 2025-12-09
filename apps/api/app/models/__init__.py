@@ -4,6 +4,7 @@ from app.models.address import Address
 from app.models.audit import AuditLog
 from app.models.cart import Cart, CartItem
 from app.models.catalog import Attribute, Category, CategoryAttribute
+from app.models.coupon import Coupon, CouponRedemption
 from app.models.inventory import StockBatch, StockMovement
 from app.models.order import Order, OrderEvent, OrderItem
 from app.models.payment import PaymentEvent
@@ -29,6 +30,8 @@ __all__ = [
     "CartItem",
     "Category",
     "CategoryAttribute",
+    "Coupon",
+    "CouponRedemption",
     "DeliveryWeightTier",
     "DeliveryZone",
     "EmailVerificationToken",

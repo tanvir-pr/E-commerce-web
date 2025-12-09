@@ -37,7 +37,14 @@ class Order(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="BDT")
     merchandise_subtotal_poisha: Mapped[int] = mapped_column(Integer, nullable=False)
     shipping_poisha: Mapped[int] = mapped_column(Integer, nullable=False)
+    discount_poisha: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_poisha: Mapped[int] = mapped_column(Integer, nullable=False)
+    coupon_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("coupons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    coupon_code: Mapped[str | None] = mapped_column(String(64))
     shipping_zone_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     shipping_zone_slug: Mapped[str | None] = mapped_column(String(64))
     shipping_zone_name: Mapped[str | None] = mapped_column(String(128))
