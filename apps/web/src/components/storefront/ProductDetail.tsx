@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AddToBagButton } from "@/components/storefront/AddToBagButton";
+import { ProductReviews } from "@/components/storefront/ProductReviews";
+import { WishlistButton } from "@/components/storefront/WishlistButton";
 import { Reveal } from "@/components/motion/Reveal";
 import { formatBdt, type PublicProduct } from "@/lib/catalog";
 import { recordRecentlyViewed } from "@/lib/recently-viewed";
@@ -98,6 +100,14 @@ export function ProductDetail({
             <p className="mt-md text-xl font-medium text-ink">
               {formatBdt(selected?.price_poisha ?? null)}
             </p>
+            {(product.rating_count ?? 0) > 0 ? (
+              <p className="mt-xs text-sm text-muted">
+                {t("ratingSummary", {
+                  avg: (product.rating_avg ?? 0).toFixed(1),
+                  count: product.rating_count ?? 0,
+                })}
+              </p>
+            ) : null}
             {product.routine_step ? (
               <p className="mt-xs text-sm uppercase tracking-wide text-sage">
                 {t("routineLabel", { step: product.routine_step })}
@@ -137,7 +147,10 @@ export function ProductDetail({
           ) : null}
 
           <Reveal delayMs={120}>
-            <AddToBagButton variantId={selected?.id} disabled={!selected} />
+            <div className="flex flex-wrap items-center gap-sm">
+              <AddToBagButton variantId={selected?.id} disabled={!selected} />
+              <WishlistButton productId={product.id} locale={locale} />
+            </div>
           </Reveal>
 
           {product.description ? (
@@ -195,6 +208,13 @@ export function ProductDetail({
           ) : null}
         </Reveal>
       </div>
+
+      <ProductReviews
+        slug={product.slug}
+        locale={locale}
+        initialAvg={product.rating_avg ?? null}
+        initialCount={product.rating_count ?? 0}
+      />
     </article>
   );
 }

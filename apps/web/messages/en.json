@@ -62,6 +62,7 @@
     "search": "Search",
     "cart": "Bag",
     "orders": "Orders",
+    "wishlist": "Wishlist",
     "login": "Sign in",
     "register": "Register",
     "admin": "Admin",
@@ -351,7 +352,7 @@
   },
   "search": {
     "title": "Search",
-    "lede": "Filter by skin type, concern, ingredient, and price. Ratings land with reviews later.",
+    "lede": "Filter by skin type, concern, ingredient, and price.",
     "queryLabel": "Search products",
     "queryPlaceholder": "Niacinamide, barrier, sunscreen…",
     "search": "Search",
@@ -373,7 +374,7 @@
     "minPrice": "Min",
     "maxPrice": "Max",
     "applyPrice": "Apply price",
-    "ratingNote": "Star ratings will filter here after verified reviews ship.",
+    "ratingNote": "Verified purchase ratings show on each product page.",
     "clearFilters": "Clear filters",
     "prev": "Previous",
     "next": "Next",
@@ -408,7 +409,49 @@
     "missingWarnings": "No special warnings listed.",
     "pao": "PAO {months} months after opening",
     "showTexture": "Show texture",
-    "showProductShot": "Show product"
+    "showProductShot": "Show product",
+    "ratingSummary": "{avg}★ · {count} reviews"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "summary": "{avg}★ average from {count} verified reviews",
+    "empty": "No reviews yet. Delivered orders can leave the first one.",
+    "verified": "Verified purchase",
+    "anonymous": "Shopper",
+    "skinType": "Skin · {type}",
+    "writeTitle": "Write a review",
+    "rating": "Rating",
+    "reviewTitle": "Title (optional)",
+    "body": "Your review",
+    "submit": "Submit review",
+    "working": "Saving…",
+    "loadFailed": "Could not load reviews.",
+    "saveFailed": "Could not save review.",
+    "needPurchase": "Reviews open after a delivered order of this product.",
+    "signInToReview": "Sign in to review after delivery."
+  },
+  "wishlist": {
+    "pageTitle": "Wishlist",
+    "lede": "Saved products for later. Stock-back alerts arrive in a later step.",
+    "loading": "Loading wishlist…",
+    "empty": "Nothing saved yet.",
+    "add": "Save to wishlist",
+    "remove": "Remove",
+    "working": "Working…",
+    "signIn": "Sign in to use wishlist",
+    "loadFailed": "Could not load wishlist.",
+    "saveFailed": "Could not update wishlist."
+  },
+  "adminReviews": {
+    "hint": "Hide or republish verified product reviews.",
+    "loadFailed": "Could not load reviews.",
+    "saveFailed": "Could not update review.",
+    "refresh": "Refresh",
+    "empty": "No reviews yet.",
+    "hidden": "hidden",
+    "verified": "verified",
+    "hide": "Hide",
+    "publish": "Publish"
   },
   "home": {
     "title": "Solum",
@@ -462,7 +505,8 @@
   },
   "account": {
     "title": "Account",
-    "lede": "Profile, addresses, sessions, and privacy controls.",
+    "lede": "Profile, addresses, wishlist, sessions, and privacy controls.",
+    "wishlistLink": "Open wishlist",
     "loading": "Loading account…",
     "signInFirst": "Sign in to manage your account.",
     "profileTitle": "Profile",
@@ -582,6 +626,7 @@
       "returns": "Returns",
       "customers": "Customers",
       "coupons": "Coupons",
+      "reviews": "Reviews",
       "support": "Support",
       "settings": "Settings"
     }

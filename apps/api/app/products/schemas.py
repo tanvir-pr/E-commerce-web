@@ -116,6 +116,8 @@ class ProductOut(BaseModel):
     attributes: list[ProductAttributeRef]
     variants: list[VariantOut]
     images: list[ProductImageSummaryOut] = []
+    rating_avg: float | None = None
+    rating_count: int = 0
 
 
 class ProductIn(BaseModel):

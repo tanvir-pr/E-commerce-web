@@ -16,6 +16,7 @@ from app.models.returns import (
     ReturnRequestItem,
     ReturnRequestPhoto,
 )
+from app.models.review import ProductReview, WishlistItem
 from app.models.role import Role, UserRole
 from app.models.shipping import DeliveryWeightTier, DeliveryZone
 from app.models.staff import RecoveryCode, StaffPermission
@@ -44,6 +45,7 @@ __all__ = [
     "Product",
     "ProductAttribute",
     "ProductImage",
+    "ProductReview",
     "ProductVariant",
     "RecoveryCode",
     "RefreshToken",
@@ -57,4 +59,5 @@ __all__ = [
     "StockReservationAllocation",
     "User",
     "UserRole",
+    "WishlistItem",
 ]

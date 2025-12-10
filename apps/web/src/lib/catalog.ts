@@ -63,6 +63,8 @@ export type PublicProduct = {
   attributes: { id: string; kind: string; slug: string; name: string }[];
   variants: PublicVariant[];
   images: PublicProductImage[];
+  rating_avg?: number | null;
+  rating_count?: number;
 };
 
 export function formatBdt(poisha: number | null | undefined): string {

@@ -20,6 +20,8 @@ export default function robots(): MetadataRoute.Robots {
           "/bn/checkout",
           "/en/orders",
           "/bn/orders",
+          "/en/wishlist",
+          "/bn/wishlist",
         ],
       },
     ],

@@ -11,6 +11,7 @@ const NAV = [
   { key: "returns", href: "/returns" },
   { key: "customers", href: "/customers" },
   { key: "coupons", href: "/coupons" },
+  { key: "reviews", href: "/reviews" },
   { key: "support", href: "/support" },
   { key: "settings", href: "/settings" },
 ] as const;

@@ -62,6 +62,7 @@
     "search": "সার্চ",
     "cart": "ব্যাগ",
     "orders": "অর্ডার",
+    "wishlist": "উইশলিস্ট",
     "login": "সাইন ইন",
     "register": "রেজিস্টার",
     "admin": "অ্যাডমিন",
@@ -351,7 +352,7 @@
   },
   "search": {
     "title": "সার্চ",
-    "lede": "স্কিন টাইপ, কনসার্ন, উপাদান ও দাম দিয়ে ফিল্টার করুন। রেটিং পরে আসবে।",
+    "lede": "স্কিন টাইপ, কনসার্ন, উপাদান ও দাম দিয়ে ফিল্টার করুন।",
     "queryLabel": "পণ্য খুঁজুন",
     "queryPlaceholder": "Niacinamide, barrier, sunscreen…",
     "search": "খুঁজুন",
@@ -373,7 +374,7 @@
     "minPrice": "সর্বনিম্ন",
     "maxPrice": "সর্বোচ্চ",
     "applyPrice": "দাম প্রয়োগ",
-    "ratingNote": "ভেরিফাইড রিভিউ এলে স্টার রেটিং ফিল্টার যোগ হবে।",
+    "ratingNote": "ভেরিফাইড পারচেজ রেটিং প্রতিটি প্রোডাক্ট পেজে দেখা যায়।",
     "clearFilters": "ফিল্টার মুছুন",
     "prev": "আগে",
     "next": "পরে",
@@ -408,7 +409,49 @@
     "missingWarnings": "বিশেষ সতর্কতা নেই।",
     "pao": "খোলার পর PAO {months} মাস",
     "showTexture": "টেক্সচার দেখুন",
-    "showProductShot": "পণ্য দেখুন"
+    "showProductShot": "পণ্য দেখুন",
+    "ratingSummary": "{avg}★ · {count} রিভিউ"
+  },
+  "reviews": {
+    "title": "রিভিউ",
+    "summary": "{avg}★ গড় · {count} ভেরিফাইড রিভিউ",
+    "empty": "এখনো কোনো রিভিউ নেই। ডেলিভারির পর প্রথম রিভিউ দিতে পারবেন।",
+    "verified": "ভেরিফাইড পারচেজ",
+    "anonymous": "ক্রেতা",
+    "skinType": "স্কিন · {type}",
+    "writeTitle": "রিভিউ লিখুন",
+    "rating": "রেটিং",
+    "reviewTitle": "শিরোনাম (ঐচ্ছিক)",
+    "body": "আপনার রিভিউ",
+    "submit": "রিভিউ জমা",
+    "working": "সেভ হচ্ছে…",
+    "loadFailed": "রিভিউ লোড করা যায়নি।",
+    "saveFailed": "রিভিউ সেভ করা যায়নি।",
+    "needPurchase": "এই পণ্য ডেলিভারি হলে রিভিউ লেখা যায়।",
+    "signInToReview": "ডেলিভারির পর রিভিউ দিতে সাইন ইন করুন।"
+  },
+  "wishlist": {
+    "pageTitle": "উইশলিস্ট",
+    "lede": "পরে কেনার জন্য সেভ করা পণ্য। স্টক ফিরলে নোটিফিকেশন পরে আসবে।",
+    "loading": "উইশলিস্ট লোড হচ্ছে…",
+    "empty": "এখনো কিছু সেভ নেই।",
+    "add": "উইশলিস্টে সেভ",
+    "remove": "সরান",
+    "working": "কাজ চলছে…",
+    "signIn": "উইশলিস্ট ব্যবহার করতে সাইন ইন করুন",
+    "loadFailed": "উইশলিস্ট লোড করা যায়নি।",
+    "saveFailed": "উইশলিস্ট আপডেট করা যায়নি।"
+  },
+  "adminReviews": {
+    "hint": "ভেরিফাইড প্রোডাক্ট রিভিউ লুকান বা আবার প্রকাশ করুন।",
+    "loadFailed": "রিভিউ লোড করা যায়নি।",
+    "saveFailed": "রিভিউ আপডেট করা যায়নি।",
+    "refresh": "রিফ্রেশ",
+    "empty": "এখনো কোনো রিভিউ নেই।",
+    "hidden": "লুকানো",
+    "verified": "ভেরিফাইড",
+    "hide": "লুকান",
+    "publish": "প্রকাশ"
   },
   "home": {
     "title": "Solum",
@@ -462,7 +505,8 @@
   },
   "account": {
     "title": "Account",
-    "lede": "Profile, addresses, sessions, and privacy controls.",
+    "lede": "প্রোফাইল, ঠিকানা, উইশলিস্ট, সেশন ও প্রাইভেসি।",
+    "wishlistLink": "উইশলিস্ট খুলুন",
     "loading": "Loading account…",
     "signInFirst": "Sign in to manage your account.",
     "profileTitle": "Profile",
@@ -582,6 +626,7 @@
       "returns": "রিটার্ন",
       "customers": "Customers",
       "coupons": "Coupons",
+      "reviews": "Reviews",
       "support": "Support",
       "settings": "Settings"
     }

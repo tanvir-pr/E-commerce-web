@@ -89,7 +89,18 @@ class ProductService:
         row = await self.repo.get_by_slug(slug, public_only=True)
         if row is None:
             raise ProblemError(404, "Not found", "Product not found.", PROBLEM_NOT_FOUND)
-        return _detail(row, active_variants_only=True)
+        avg, count = await self.rating_stats_for(row.id)
+        return _detail(
+            row,
+            active_variants_only=True,
+            rating_avg=round(avg, 2) if avg is not None else None,
+            rating_count=count,
+        )
+
+    async def rating_stats_for(self, product_id: UUID) -> tuple[float | None, int]:
+        from app.reviews.service import ReviewService
+
+        return await ReviewService(self.session).rating_stats(product_id)
 
     async def get_admin(self, product_id: UUID) -> ProductOut:
         row = await self.repo.require(product_id)
@@ -295,7 +306,13 @@ def _summary(row: Product) -> ProductSummaryOut:
     )
 
 
-def _detail(row: Product, *, active_variants_only: bool) -> ProductOut:
+def _detail(
+    row: Product,
+    *,
+    active_variants_only: bool,
+    rating_avg: float | None = None,
+    rating_count: int = 0,
+) -> ProductOut:
     variants = list(row.variants or [])
     if active_variants_only:
         variants = [v for v in variants if v.is_active]
@@ -329,6 +346,8 @@ def _detail(row: Product, *, active_variants_only: bool) -> ProductOut:
                 key=lambda i: (i.sort_order, str(i.id)),
             )
         ],
+        rating_avg=rating_avg,
+        rating_count=rating_count,
     )
 
 

@@ -199,6 +199,11 @@ def _service() -> tuple[ProductService, FakeRepo, FakeAudit, UUID]:
     service.catalog = FakeCatalog(category_id)  # type: ignore[assignment]
     service.audit = audit  # type: ignore[assignment]
     service.search = FakeSearch()  # type: ignore[assignment]
+
+    async def _no_ratings(_product_id: object) -> tuple[float | None, int]:
+        return None, 0
+
+    service.rating_stats_for = _no_ratings  # type: ignore[method-assign]
     return service, repo, audit, category_id
 
 

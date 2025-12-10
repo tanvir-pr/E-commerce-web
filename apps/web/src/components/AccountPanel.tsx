@@ -267,6 +267,9 @@ export function AccountPanel() {
       <section className="flex flex-col gap-md">
         <h2 className="text-lg font-semibold text-ink">{t("profileTitle")}</h2>
         <p className="text-sm text-muted">{me.email}</p>
+        <a href={`/${locale}/wishlist`} className="w-fit text-sm text-sage underline">
+          {t("wishlistLink")}
+        </a>
         <form onSubmit={onSaveProfile} className="flex flex-col gap-md">
           <label className="flex flex-col gap-xs text-sm">
             <span>{t("displayName")}</span>
