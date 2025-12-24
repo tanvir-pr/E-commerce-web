@@ -558,12 +558,19 @@ class OrderService:
         await self._notify_status(order, to_status)
         return self._order_out(order, actor="staff" if source == "staff" else "customer")
 
+    async def wants_order_emails(self, user_id: UUID) -> bool:
+        from app.support.service import SupportService
+
+        return await SupportService(self.session).wants_order_updates(user_id)
+
     async def _notify_status(self, order: Order, status: str) -> None:
         if status not in _EMAIL_STATUSES:
             return
         user = order.user
         email = user.email if user is not None else None
         if not email:
+            return
+        if not await self.wants_order_emails(order.user_id):
             return
         await self.mailer.send_order_status(
             email=email,

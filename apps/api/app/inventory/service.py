@@ -51,6 +51,7 @@ class InventoryService:
 
     async def receive(self, body: ReceiptIn, *, actor_user_id: UUID) -> VariantStockOut:
         variant = await self.repo.require_variant(body.variant_id)
+        prior_qty = await self.repo.qty_on_hand(variant.id)
         lot = body.lot_code.strip() if body.lot_code else None
         batch = StockBatch(
             variant_id=variant.id,
@@ -78,7 +79,14 @@ class InventoryService:
             subject_id=str(saved.id),
             meta={"variant_id": str(variant.id), "qty": body.qty},
         )
+        if prior_qty <= 0 and body.qty > 0:
+            await self.notify_product_back_in_stock(variant.product_id)
         return await self.get_variant_stock(variant.id, include_empty=True)
+
+    async def notify_product_back_in_stock(self, product_id: UUID) -> int:
+        from app.support.service import SupportService
+
+        return await SupportService(self.session).notify_stock_back(product_id)
 
     async def adjust(self, body: AdjustmentIn, *, actor_user_id: UUID) -> VariantStockOut:
         if body.qty_delta == 0:

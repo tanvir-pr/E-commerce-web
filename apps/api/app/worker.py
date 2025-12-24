@@ -14,6 +14,7 @@ from app.logging_config import setup_logging
 from app.orders.jobs import expire_stock_reservations, send_order_status_email
 from app.payments.jobs import reconcile_late_payments
 from app.search.jobs import reindex_catalog, sync_product
+from app.support.jobs import send_stock_back_email, send_support_reply_email
 
 setup_logging()
 logging.getLogger("arq").setLevel(logging.WARNING)
@@ -42,6 +43,8 @@ class WorkerSettings:
         expire_stock_reservations,
         send_order_status_email,
         reconcile_late_payments,
+        send_support_reply_email,
+        send_stock_back_email,
     ]
     cron_jobs = [
         cron(mark_abandoned_carts, hour={0, 6, 12, 18}, minute=15),  # type: ignore[arg-type]

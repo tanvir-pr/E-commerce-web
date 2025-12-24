@@ -187,6 +187,11 @@ def _payment_service(order: SimpleNamespace) -> PaymentService:
     service.orders.audit = FakeAudit()  # type: ignore[assignment]
     service.orders.inventory = FakeInventory()  # type: ignore[assignment]
     service.events = FakeEventRepo()  # type: ignore[assignment]
+
+    async def _always_email(_user_id: object) -> bool:
+        return True
+
+    service.orders.wants_order_emails = _always_email  # type: ignore[method-assign]
     return service
 
 

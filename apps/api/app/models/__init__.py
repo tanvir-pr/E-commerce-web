@@ -20,6 +20,7 @@ from app.models.review import ProductReview, WishlistItem
 from app.models.role import Role, UserRole
 from app.models.shipping import DeliveryWeightTier, DeliveryZone
 from app.models.staff import RecoveryCode, StaffPermission
+from app.models.support import NotificationPreference, SupportTicket, SupportTicketMessage
 from app.models.token import EmailVerificationToken, PasswordResetToken, RefreshToken
 from app.models.user import User
 
@@ -37,6 +38,7 @@ __all__ = [
     "DeliveryZone",
     "EmailVerificationToken",
     "LedgerEntry",
+    "NotificationPreference",
     "Order",
     "OrderEvent",
     "OrderItem",
@@ -57,6 +59,8 @@ __all__ = [
     "StockBatch",
     "StockMovement",
     "StockReservationAllocation",
+    "SupportTicket",
+    "SupportTicketMessage",
     "User",
     "UserRole",
     "WishlistItem",

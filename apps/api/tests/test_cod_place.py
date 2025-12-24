@@ -239,6 +239,11 @@ def _service(
     service.carts = carts  # type: ignore[assignment]
     service.audit = audit  # type: ignore[assignment]
     service.checkout = FakeCheckout(quote or _quote())  # type: ignore[assignment]
+
+    async def _always_email(_user_id: object) -> bool:
+        return True
+
+    service.wants_order_emails = _always_email  # type: ignore[method-assign]
     return service, repo, inventory, carts, audit
 
 

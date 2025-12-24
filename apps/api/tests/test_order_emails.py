@@ -106,6 +106,11 @@ def _service(order: SimpleNamespace) -> tuple[OrderService, FakeMailer]:
     service.repo = FakeRepo(order)  # type: ignore[assignment]
     service.audit = FakeAudit()  # type: ignore[assignment]
     service.inventory = FakeInventory()  # type: ignore[assignment]
+
+    async def _always_email(_user_id: object) -> bool:
+        return True
+
+    service.wants_order_emails = _always_email  # type: ignore[method-assign]
     return service, mailer
 
 
@@ -356,6 +361,11 @@ async def test_prepaid_place_emails_pending_payment() -> None:
     service.inventory = FakeInventory()  # type: ignore[assignment]
     service.carts = FakeCarts()  # type: ignore[assignment]
     service.checkout = FakeCheckout()  # type: ignore[assignment]
+
+    async def _always_email(_user_id: object) -> bool:
+        return True
+
+    service.wants_order_emails = _always_email  # type: ignore[method-assign]
 
     out = await service.place(
         PlaceOrderIn(line1="12 Road", city="Dhaka", payment_method="bkash"),

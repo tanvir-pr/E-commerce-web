@@ -145,6 +145,11 @@ def _service(order: SimpleNamespace) -> tuple[PaymentService, FakeEventRepo]:
     service.orders.inventory = FakeInventory()  # type: ignore[assignment]
     events = FakeEventRepo()
     service.events = events  # type: ignore[assignment]
+
+    async def _always_email(_user_id: object) -> bool:
+        return True
+
+    service.orders.wants_order_emails = _always_email  # type: ignore[method-assign]
     return service, events
 
 

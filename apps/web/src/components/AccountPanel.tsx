@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { SupportAccountSection } from "@/components/SupportAccountSection";
 import {
   apiDelete,
   apiPatch,
@@ -413,6 +414,8 @@ export function AccountPanel() {
           {t("logoutEverywhere")}
         </button>
       </section>
+
+      <SupportAccountSection />
 
       <section className="flex flex-col gap-md">
         <h2 className="text-lg font-semibold text-ink">{t("privacyTitle")}</h2>

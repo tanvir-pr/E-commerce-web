@@ -166,6 +166,11 @@ def _service() -> tuple[InventoryService, FakeRepo, FakeAudit, SimpleNamespace]:
     audit = FakeAudit()
     service.repo = repo  # type: ignore[assignment]
     service.audit = audit  # type: ignore[assignment]
+
+    async def _no_stock_mail(_product_id: object) -> int:
+        return 0
+
+    service.notify_product_back_in_stock = _no_stock_mail  # type: ignore[method-assign]
     return service, repo, audit, variant
 
 
