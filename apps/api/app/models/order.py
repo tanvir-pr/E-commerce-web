@@ -53,6 +53,7 @@ class Order(Base):
     source_address_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String(32))
     payment_status: Mapped[str | None] = mapped_column(String(32))
+    fraud_score: Mapped[int | None] = mapped_column(Integer)
     reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     courier_name: Mapped[str | None] = mapped_column(String(64), index=True)
     tracking_number: Mapped[str | None] = mapped_column(String(128), index=True)

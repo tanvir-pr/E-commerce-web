@@ -14,6 +14,7 @@ from app.checkout.schemas import CheckoutQuoteIn
 from app.checkout.service import CheckoutService
 from app.config import Settings, get_settings
 from app.coupons.service import CouponService
+from app.flags.service import FeatureFlagService
 from app.inventory.service import InventoryService
 from app.models.order import Order, OrderEvent, OrderItem
 from app.orders.constants import (
@@ -77,6 +78,7 @@ class OrderService:
         self.carts = CartService(session)
         self.inventory = InventoryService(session)
         self.coupons = CouponService(session)
+        self.flags = FeatureFlagService(session)
         self.audit = AuditService(session)
 
     async def place(
@@ -94,6 +96,7 @@ class OrderService:
                 f"payment_method must be one of: {', '.join(sorted(PAYMENT_METHODS))}",
                 PROBLEM_VALIDATION,
             )
+        await self.flags.assert_can_place(method)
 
         quote_body = CheckoutQuoteIn(
             address_id=body.address_id,
@@ -121,6 +124,13 @@ class OrderService:
                 PROBLEM_VALIDATION,
             )
 
+        fraud_score: int | None = None
+        fraud_reasons: list[str] = []
+        if method == "cod":
+            fraud_score, fraud_reasons = await self.flags.evaluate_cod(
+                user_id=user_id, quote=quote
+            )
+
         now = datetime.now(UTC)
         address = quote.address.model_dump(mode="json")
         order = Order(
@@ -143,6 +153,7 @@ class OrderService:
             source_address_id=quote.address.id,
             payment_method=method,
             payment_status="pending",
+            fraud_score=fraud_score,
             placed_at=now,
         )
         order = await self.repo.add(order)
@@ -178,7 +189,11 @@ class OrderService:
                 actor_user_id=user_id,
                 source="customer",
                 note="Order placed",
-                meta={"payment_method": method},
+                meta={
+                    "payment_method": method,
+                    "fraud_score": fraud_score,
+                    "fraud_reasons": fraud_reasons,
+                },
             )
         )
         order = await self.repo.require(order.id)
@@ -211,6 +226,7 @@ class OrderService:
                 "coupon_code": order.coupon_code,
                 "reserved_units": reserved,
                 "payment_method": method,
+                "fraud_score": fraud_score,
                 "cod_auto_confirmed": method == "cod" and self.settings.cod_auto_confirm,
             },
         )
@@ -655,6 +671,7 @@ class OrderService:
             ),
             payment_method=order.payment_method,
             payment_status=order.payment_status,
+            fraud_score=getattr(order, "fraud_score", None),
             reservation_expires_at=order.reservation_expires_at,
             courier_name=order.courier_name,
             tracking_number=order.tracking_number,

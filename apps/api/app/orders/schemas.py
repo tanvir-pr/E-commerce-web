@@ -59,6 +59,7 @@ class OrderOut(BaseModel):
     shipping_address: OrderAddressOut
     payment_method: str | None
     payment_status: str | None
+    fraud_score: int | None = None
     reservation_expires_at: datetime | None = None
     courier_name: str | None = None
     tracking_number: str | None = None

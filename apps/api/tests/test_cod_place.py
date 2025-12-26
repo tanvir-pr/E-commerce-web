@@ -90,6 +90,7 @@ class FakeRepo:
             shipping_address=order.shipping_address,
             payment_method=getattr(order, "payment_method", None),
             payment_status=getattr(order, "payment_status", None),
+            fraud_score=getattr(order, "fraud_score", None),
             reservation_expires_at=getattr(order, "reservation_expires_at", None),
             courier_name=None,
             tracking_number=None,
@@ -244,6 +245,15 @@ def _service(
         return True
 
     service.wants_order_emails = _always_email  # type: ignore[method-assign]
+
+    class FakeFlags:
+        async def assert_can_place(self, _method: str) -> None:
+            return None
+
+        async def evaluate_cod(self, **_kwargs: object) -> tuple[int, list[str]]:
+            return 0, []
+
+    service.flags = FakeFlags()  # type: ignore[assignment]
     return service, repo, inventory, carts, audit
 
 
