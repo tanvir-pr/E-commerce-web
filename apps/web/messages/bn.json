@@ -133,6 +133,8 @@
     "placeFailed": "অর্ডার প্লেস করা যায়নি।",
     "placeOrderBlocked": "অর্ডারের আগে ব্লকার ঠিক করুন।",
     "paymentMethodTitle": "পেমেন্ট",
+    "checkoutDisabled": "চেকআউট সাময়িকভাবে বন্ধ আছে।",
+    "noPaymentMethods": "এখন কোনো পেমেন্ট পদ্ধতি নেই।",
     "codNote": "ক্যাশ অন ডেলিভারি। অর্ডার সাথে সাথে কনফার্ম হয়; পণ্য পেয়ে টাকা দিন। শিপের আগে বাতিল করা যায়।",
     "prepaidNote": "স্যান্ডবক্স গেটওয়েতে পেমেন্ট শেষ করতে রিডাইরেক্ট হবে। স্টক কিছুক্ষণ ধরে রাখা হয়।"
   },
@@ -665,6 +667,7 @@
     "working": "Working…",
     "settingsStaff": "স্টাফ অ্যাকাউন্ট",
     "settingsShipping": "ডেলিভারি জোন",
+    "settingsFlags": "ফিচার ফ্ল্যাগ",
     "nav": {
       "dashboard": "Dashboard",
       "catalog": "Catalog",
@@ -779,6 +782,14 @@
     "variant": "Variant",
     "reindexSearch": "Rebuild search index",
     "reindexOk": "Search index rebuilt ({count} products)."
+  },
+  "adminFlags": {
+    "hint": "চেকআউট ও পেমেন্টের রানটাইম কিল সুইচ। COD ফ্রড চেকের থ্রেশহোল্ড সেই ফ্ল্যাগের JSON-এ।",
+    "loadFailed": "ফিচার ফ্ল্যাগ লোড করা যায়নি।",
+    "saveFailed": "ফ্ল্যাগ আপডেট করা যায়নি।",
+    "empty": "এখনো কোনো ফ্ল্যাগ নেই।",
+    "on": "চালু",
+    "off": "বন্ধ"
   },
   "notFound": {
     "title": "Page not found",

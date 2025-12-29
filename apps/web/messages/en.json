@@ -133,6 +133,8 @@
     "placeFailed": "Could not place the order.",
     "placeOrderBlocked": "Resolve blockers before placing the order.",
     "paymentMethodTitle": "Payment",
+    "checkoutDisabled": "Checkout is temporarily unavailable.",
+    "noPaymentMethods": "No payment methods are available right now.",
     "codNote": "Cash on delivery. The order confirms immediately; pay when it arrives. You can cancel until it ships.",
     "prepaidNote": "You will be redirected to the sandbox gateway to complete payment. Stock is held for a short time."
   },
@@ -665,6 +667,7 @@
     "working": "Working…",
     "settingsStaff": "Staff accounts",
     "settingsShipping": "Delivery zones",
+    "settingsFlags": "Feature flags",
     "nav": {
       "dashboard": "Dashboard",
       "catalog": "Catalog",
@@ -779,6 +782,14 @@
     "variant": "Variant",
     "reindexSearch": "Rebuild search index",
     "reindexOk": "Search index rebuilt ({count} products)."
+  },
+  "adminFlags": {
+    "hint": "Runtime kill switches for checkout and payment methods. COD fraud check uses the JSON threshold on that flag.",
+    "loadFailed": "Could not load feature flags.",
+    "saveFailed": "Could not update flag.",
+    "empty": "No flags seeded yet.",
+    "on": "On",
+    "off": "Off"
   },
   "notFound": {
     "title": "Page not found",

@@ -16,7 +16,10 @@ import {
 } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
 import { fetchCheckoutQuote, type CheckoutQuote } from "@/lib/checkout";
+import { fetchCheckoutMethods, type CheckoutMethods } from "@/lib/flags";
 import { placeOrder } from "@/lib/orders";
+
+type PayMethod = "cod" | "bkash" | "sslcommerz";
 
 export function CheckoutPanel() {
   const t = useTranslations("checkout");
@@ -34,7 +37,8 @@ export function CheckoutPanel() {
   const [district, setDistrict] = useState("");
   const [phone, setPhone] = useState("");
   const [saveAddress, setSaveAddress] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "bkash" | "sslcommerz">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<PayMethod>("cod");
+  const [methods, setMethods] = useState<CheckoutMethods | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const tOrders = useTranslations("orders");
 
@@ -55,6 +59,27 @@ export function CheckoutPanel() {
         return;
       }
       setMe(current);
+      try {
+        const available = await fetchCheckoutMethods();
+        if (!active) {
+          return;
+        }
+        setMethods(available);
+        const first = available.methods.find((m): m is PayMethod =>
+          m === "cod" || m === "bkash" || m === "sslcommerz",
+        );
+        if (first) {
+          setPaymentMethod(first);
+        }
+      } catch {
+        if (active) {
+          setMethods({
+            checkout_enabled: true,
+            methods: ["cod", "bkash", "sslcommerz"],
+            cod_fraud_check_enabled: true,
+          });
+        }
+      }
       if (!current) {
         return;
       }
@@ -384,24 +409,37 @@ export function CheckoutPanel() {
               {t("notReady")}
             </p>
           )}
+          {methods && !methods.checkout_enabled ? (
+            <p role="status" className="mt-md text-sm text-danger">
+              {t("checkoutDisabled")}
+            </p>
+          ) : null}
           <fieldset className="mt-md">
             <legend className="text-sm font-semibold text-ink">{t("paymentMethodTitle")}</legend>
             <div className="mt-sm flex flex-col gap-2xs text-sm">
-              {(["cod", "bkash", "sslcommerz"] as const).map((method) => (
-                <label key={method} className="flex items-center gap-sm text-muted">
-                  <input
-                    type="radio"
-                    name="payment_method"
-                    value={method}
-                    checked={paymentMethod === method}
-                    onChange={() => setPaymentMethod(method)}
-                  />
-                  {tOrders(`paymentMethod.${method}`)}
-                </label>
-              ))}
+              {(methods?.methods ?? ["cod", "bkash", "sslcommerz"]).map((method) => {
+                if (method !== "cod" && method !== "bkash" && method !== "sslcommerz") {
+                  return null;
+                }
+                return (
+                  <label key={method} className="flex items-center gap-sm text-muted">
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value={method}
+                      checked={paymentMethod === method}
+                      onChange={() => setPaymentMethod(method)}
+                    />
+                    {tOrders(`paymentMethod.${method}`)}
+                  </label>
+                );
+              })}
             </div>
+            {methods && methods.methods.length === 0 ? (
+              <p className="mt-sm text-sm text-danger">{t("noPaymentMethods")}</p>
+            ) : null}
           </fieldset>
-          {quote.place_order_available ? (
+          {quote.place_order_available && methods?.checkout_enabled !== false && (methods?.methods.length ?? 0) > 0 ? (
             <button
               type="button"
               disabled={placing || pending}
