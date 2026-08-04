@@ -1,6 +1,7 @@
 """ORM models. Import side effects register tables on Base.metadata."""
 
 from app.models.address import Address
+from app.models.assistant import AssistantConversation, AssistantMessage, KnowledgeChunk
 from app.models.audit import AuditLog
 from app.models.cart import Cart, CartItem
 from app.models.catalog import Attribute, Category, CategoryAttribute
@@ -27,6 +28,8 @@ from app.models.user import User
 
 __all__ = [
     "Address",
+    "AssistantConversation",
+    "AssistantMessage",
     "Attribute",
     "AuditLog",
     "Cart",
@@ -39,6 +42,7 @@ __all__ = [
     "DeliveryZone",
     "EmailVerificationToken",
     "FeatureFlag",
+    "KnowledgeChunk",
     "LedgerEntry",
     "NotificationPreference",
     "Order",
