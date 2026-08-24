@@ -791,6 +791,23 @@
     "on": "On",
     "off": "Off"
   },
+  "assistant": {
+    "open": "Ask Solum",
+    "close": "Close",
+    "title": "Shopping assistant",
+    "subtitle": "Routines, ingredients, policies",
+    "welcome": "Ask about routines, ingredients, concerns, shipping, or returns. Product prices and stock are checked live.",
+    "placeholder": "Ask a question…",
+    "send": "Send",
+    "sending": "…",
+    "askFailed": "Could not get an answer.",
+    "sources": "Sources",
+    "outOfStock": "out of stock",
+    "handoff": "Talk to a human",
+    "handoffOk": "Support ticket opened — check Account → Support.",
+    "handoffFailed": "Could not open a support ticket.",
+    "signInForHandoff": "Sign in to hand this chat to support."
+  },
   "notFound": {
     "title": "Page not found",
     "home": "Back to the store"
