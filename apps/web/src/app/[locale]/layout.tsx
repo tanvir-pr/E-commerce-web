@@ -4,6 +4,7 @@ import { Fraunces, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { AssistantWidget } from "@/components/AssistantWidget";
 import { Header } from "@/components/Header";
 import { SiteFooter } from "@/components/SiteFooter";
 import { routing } from "@/i18n/routing";
@@ -78,6 +79,7 @@ export default async function LocaleLayout({
           <Header />
           <div className="flex-1">{children}</div>
           <SiteFooter />
+          <AssistantWidget />
         </NextIntlClientProvider>
       </body>
     </html>
