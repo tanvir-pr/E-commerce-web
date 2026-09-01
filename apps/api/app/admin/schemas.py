@@ -31,3 +31,18 @@ class AuditEventOut(BaseModel):
 
 class AuditListOut(BaseModel):
     items: list[AuditEventOut]
+
+
+class LaunchCheckOut(BaseModel):
+    key: str
+    title: str
+    status: str
+    detail: str
+
+
+class LaunchReadinessOut(BaseModel):
+    ready_for_launch: bool
+    blocking_failures: int
+    manual_items: int
+    expected_alembic: str
+    checks: list[LaunchCheckOut]

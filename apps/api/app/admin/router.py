@@ -3,23 +3,35 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.admin.readiness import LaunchReadinessService
 from app.admin.schemas import (
     AuditEventOut,
     AuditListOut,
     CreateStaffIn,
     CreateStaffOut,
+    LaunchReadinessOut,
     ReplacePermissionsIn,
 )
-from app.deps import get_current_staff_user, get_current_super_admin_id
+from app.deps import get_current_staff_user, get_current_super_admin_id, get_redis
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.session import get_session
 from app.staff.service import StaffService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/launch-readiness", response_model=LaunchReadinessOut)
+async def launch_readiness(
+    _staff: User = Depends(get_current_staff_user),
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> LaunchReadinessOut:
+    return await LaunchReadinessService(session, redis).report()
 
 
 @router.get("/audit", response_model=AuditListOut)
