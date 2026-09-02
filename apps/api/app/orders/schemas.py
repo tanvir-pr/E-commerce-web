@@ -163,6 +163,9 @@ class DashboardMetricsOut(BaseModel):
     today: DashboardPeriodOut
     last_7_days: DashboardPeriodOut
     last_30_days: DashboardPeriodOut
+    custom: DashboardPeriodOut | None = None
+    range_from: datetime | None = None
+    range_to: datetime | None = None
     funnel: FunnelCountsOut
     alerts: DashboardAlertsOut
     top_products: list[TopProductOut]

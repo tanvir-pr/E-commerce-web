@@ -55,7 +55,14 @@ class OrderRepository:
         )
         return list(result.scalars().unique().all())
 
-    async def list_admin(self, *, status: str, limit: int = 100) -> list[Order]:
+    async def list_admin(
+        self,
+        *,
+        status: str,
+        limit: int = 100,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> list[Order]:
         stmt = (
             select(Order)
             .options(*self._options())
@@ -64,6 +71,10 @@ class OrderRepository:
         )
         if status != "all":
             stmt = stmt.where(Order.status == status)
+        if since is not None:
+            stmt = stmt.where(Order.placed_at >= since)
+        if until is not None:
+            stmt = stmt.where(Order.placed_at < until)
         result = await self.session.execute(stmt)
         return list(result.scalars().unique().all())
 
@@ -106,8 +117,13 @@ class OrderRepository:
         )
         return {str(status): int(count) for status, count in result.all()}
 
-    async def period_stats(self, *, since: datetime) -> dict[str, float | int]:
+    async def period_stats(
+        self, *, since: datetime, until: datetime | None = None
+    ) -> dict[str, float | int]:
         sold = Order.status.in_(("confirmed", "shipped", "delivered"))
+        filters = [Order.placed_at >= since]
+        if until is not None:
+            filters.append(Order.placed_at < until)
         result = await self.session.execute(
             select(
                 func.coalesce(
@@ -121,7 +137,7 @@ class OrderRepository:
                     Order.payment_method == "cod",
                 ),
                 func.count(),
-            ).where(Order.placed_at >= since)
+            ).where(*filters)
         )
         revenue, sold_count, cancelled, cod_sold, total = result.one()
         return {
@@ -143,8 +159,14 @@ class OrderRepository:
         return int(result.scalar_one())
 
     async def top_products(
-        self, *, since: datetime, limit: int = 5
+        self, *, since: datetime, until: datetime | None = None, limit: int = 5
     ) -> list[tuple[UUID, str, str, int, int]]:
+        filters = [
+            Order.placed_at >= since,
+            Order.status.in_(("confirmed", "shipped", "delivered")),
+        ]
+        if until is not None:
+            filters.append(Order.placed_at < until)
         result = await self.session.execute(
             select(
                 OrderItem.product_id,
@@ -154,10 +176,7 @@ class OrderRepository:
                 func.sum(OrderItem.line_total_poisha),
             )
             .join(Order, OrderItem.order_id == Order.id)
-            .where(
-                Order.placed_at >= since,
-                Order.status.in_(("confirmed", "shipped", "delivered")),
-            )
+            .where(*filters)
             .group_by(OrderItem.product_id, OrderItem.product_slug, OrderItem.product_name)
             .order_by(func.sum(OrderItem.line_total_poisha).desc())
             .limit(limit)
