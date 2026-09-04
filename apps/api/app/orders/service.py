@@ -263,7 +263,13 @@ class OrderService:
             note=note or "Cancelled by customer",
         )
 
-    async def admin_list(self, *, status: str = "all") -> OrderListOut:
+    async def admin_list(
+        self,
+        *,
+        status: str = "all",
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> OrderListOut:
         if status not in ADMIN_LIST_FILTERS:
             raise ProblemError(
                 422,
@@ -271,8 +277,72 @@ class OrderService:
                 f"status must be one of: {', '.join(sorted(ADMIN_LIST_FILTERS))}",
                 PROBLEM_VALIDATION,
             )
-        rows = await self.repo.list_admin(status=status)
+        rows = await self.repo.list_admin(
+            status=status, since=since, until=until
+        )
         return OrderListOut(items=[self._summary(row, include_email=True) for row in rows])
+
+    async def orders_csv(
+        self,
+        *,
+        status: str = "all",
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> str:
+        listing = await self.admin_list(status=status, since=since, until=until)
+        lines = [
+            "order_number,status,total_poisha,currency,payment_method,item_count,placed_at,user_email"
+        ]
+        for row in listing.items:
+            email = (row.user_email or "").replace(",", " ")
+            lines.append(
+                ",".join(
+                    [
+                        row.order_number,
+                        row.status,
+                        str(row.total_poisha),
+                        row.currency,
+                        row.payment_method or "",
+                        str(row.item_count),
+                        row.placed_at.isoformat(),
+                        email,
+                    ]
+                )
+            )
+        return "\n".join(lines) + "\n"
+
+    async def metrics_csv(
+        self,
+        *,
+        range_from: datetime | None = None,
+        range_to: datetime | None = None,
+    ) -> str:
+        metrics = await self.dashboard_metrics(
+            range_from=range_from, range_to=range_to
+        )
+        period = metrics.custom or metrics.last_30_days
+        label = "custom" if metrics.custom else "last_30_days"
+        lines = [
+            "period,revenue_poisha,order_count,aov_poisha,cod_share,cancel_rate",
+            ",".join(
+                [
+                    label,
+                    str(period.revenue_poisha),
+                    str(period.order_count),
+                    str(period.aov_poisha),
+                    f"{period.cod_share:.4f}",
+                    f"{period.cancel_rate:.4f}",
+                ]
+            ),
+            "",
+            "product_slug,product_name,units,revenue_poisha",
+        ]
+        for product in metrics.top_products:
+            name = product.product_name.replace(",", " ")
+            lines.append(
+                f"{product.product_slug},{name},{product.units},{product.revenue_poisha}"
+            )
+        return "\n".join(lines) + "\n"
 
     async def admin_get(self, order_id: UUID) -> OrderOut:
         order = await self.repo.require(order_id)
@@ -328,11 +398,23 @@ class OrderService:
         order = await self.repo.save(order)
         return self._order_out(order, actor="staff")
 
-    async def dashboard_metrics(self) -> DashboardMetricsOut:
+    async def dashboard_metrics(
+        self,
+        *,
+        range_from: datetime | None = None,
+        range_to: datetime | None = None,
+    ) -> DashboardMetricsOut:
         now = datetime.now(UTC)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         day7 = now - timedelta(days=7)
         day30 = now - timedelta(days=30)
+        if range_from is not None and range_to is not None and range_from >= range_to:
+            raise ProblemError(
+                422,
+                "Validation error",
+                "range_from must be before range_to.",
+                PROBLEM_VALIDATION,
+            )
         funnel_raw = await self.repo.count_by_status()
         funnel = FunnelCountsOut(
             pending_payment=funnel_raw.get("pending_payment", 0),
@@ -358,11 +440,23 @@ class OrderService:
         overdue = await self.repo.count_overdue_confirmed(
             cutoff=now - timedelta(hours=self.settings.fulfilment_sla_hours)
         )
-        top_rows = await self.repo.top_products(since=day30, limit=5)
+        top_since = range_from or day30
+        top_until = range_to
+        top_rows = await self.repo.top_products(
+            since=top_since, until=top_until, limit=5
+        )
+        custom = None
+        if range_from is not None:
+            custom = self._period(
+                await self.repo.period_stats(since=range_from, until=range_to)
+            )
         return DashboardMetricsOut(
             today=self._period(await self.repo.period_stats(since=today_start)),
             last_7_days=self._period(await self.repo.period_stats(since=day7)),
             last_30_days=self._period(await self.repo.period_stats(since=day30)),
+            custom=custom,
+            range_from=range_from,
+            range_to=range_to,
             funnel=funnel,
             alerts=DashboardAlertsOut(
                 low_stock_count=len(low.items),
