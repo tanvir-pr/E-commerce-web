@@ -1,8 +1,11 @@
 """Staff order list, fulfilment, and dashboard metrics."""
 
+from datetime import date, datetime, time, timedelta
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,21 +29,82 @@ def get_order_service(
     return OrderService(session, mailer=ArqOrderMailer(request.app.state.arq))
 
 
+def _day_start(value: date | None) -> datetime | None:
+    if value is None:
+        return None
+    return datetime.combine(value, time.min, tzinfo=UTC)
+
+
+def _day_end_exclusive(value: date | None) -> datetime | None:
+    if value is None:
+        return None
+    return datetime.combine(value + timedelta(days=1), time.min, tzinfo=UTC)
+
+
 @router.get("/admin/metrics", response_model=DashboardMetricsOut)
 async def admin_dashboard_metrics(
+    range_from: date | None = Query(default=None, alias="from"),
+    range_to: date | None = Query(default=None, alias="to"),
     _staff: User = Depends(get_current_staff_user),
     service: OrderService = Depends(get_order_service),
 ) -> DashboardMetricsOut:
-    return await service.dashboard_metrics()
+    return await service.dashboard_metrics(
+        range_from=_day_start(range_from),
+        range_to=_day_end_exclusive(range_to) if range_to else None,
+    )
+
+
+@router.get("/admin/metrics.csv")
+async def admin_dashboard_metrics_csv(
+    range_from: date | None = Query(default=None, alias="from"),
+    range_to: date | None = Query(default=None, alias="to"),
+    _staff: User = Depends(get_current_staff_user),
+    service: OrderService = Depends(get_order_service),
+) -> Response:
+    body = await service.metrics_csv(
+        range_from=_day_start(range_from),
+        range_to=_day_end_exclusive(range_to) if range_to else None,
+    )
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="metrics.csv"'},
+    )
 
 
 @router.get("/admin/orders", response_model=OrderListOut)
 async def admin_list_orders(
     status: str = Query(default="all"),
+    range_from: date | None = Query(default=None, alias="from"),
+    range_to: date | None = Query(default=None, alias="to"),
     _staff: User = Depends(get_current_staff_user),
     service: OrderService = Depends(get_order_service),
 ) -> OrderListOut:
-    return await service.admin_list(status=status)
+    return await service.admin_list(
+        status=status,
+        since=_day_start(range_from),
+        until=_day_end_exclusive(range_to) if range_to else None,
+    )
+
+
+@router.get("/admin/orders.csv")
+async def admin_orders_csv(
+    status: str = Query(default="all"),
+    range_from: date | None = Query(default=None, alias="from"),
+    range_to: date | None = Query(default=None, alias="to"),
+    _staff: User = Depends(get_current_staff_user),
+    service: OrderService = Depends(get_order_service),
+) -> Response:
+    body = await service.orders_csv(
+        status=status,
+        since=_day_start(range_from),
+        until=_day_end_exclusive(range_to) if range_to else None,
+    )
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="orders.csv"'},
+    )
 
 
 @router.get("/admin/orders/{order_id}", response_model=OrderOut)
