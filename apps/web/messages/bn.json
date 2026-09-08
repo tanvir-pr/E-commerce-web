@@ -259,6 +259,9 @@
     "shipFieldsRequired": "শিপ করতে কুরিয়ার ও ট্র্যাকিং লাগবে।",
     "markAs": "{status} করুন",
     "transitioned": "{status}-এ সরানো হয়েছে।",
+    "from": "থেকে",
+    "to": "পর্যন্ত",
+    "exportCsv": "CSV এক্সপোর্ট",
     "filter": {
       "all": "সব"
     }
@@ -321,6 +324,14 @@
     "alertOverdue": "শিপ ওভারডিউ: {count}",
     "alertAbandoned": "অ্যাবান্ডন্ড কার্ট: {value}",
     "topProducts": "টপ প্রোডাক্ট (৩০ দিন)",
+    "customRange": "কাস্টম রেঞ্জ",
+    "from": "থেকে",
+    "to": "পর্যন্ত",
+    "applyRange": "প্রয়োগ",
+    "clearRange": "মুছুন",
+    "exportCsv": "CSV এক্সপোর্ট",
+    "customRevenue": "কাস্টম রেঞ্জ রেভিনিউ",
+    "openLaunch": "লঞ্চ চেকলিস্ট",
     "funnel": {
       "pending_payment": "পেমেন্ট পেন্ডিং",
       "confirmed": "কনফার্মড",
@@ -679,7 +690,24 @@
       "coupons": "Coupons",
       "reviews": "Reviews",
       "support": "Support",
+      "launch": "লঞ্চ",
       "settings": "Settings"
+    }
+  },
+  "adminLaunch": {
+    "hint": "২০২৭ লঞ্চের সিকিউরিটি ও গেট। আগে ব্লকিং ফেল ঠিক করুন; ব্যাকআপ ড্রিল, ওভারসেল টেস্ট, লাইভ পেমেন্ট ম্যানুয়ালি সাইন-অফ করুন।",
+    "loadFailed": "লঞ্চ রেডিনেস লোড করা যায়নি।",
+    "ready": "লঞ্চের জন্য প্রস্তুত",
+    "yes": "হ্যাঁ",
+    "no": "এখনো নয়",
+    "blocking": "ব্লকিং ফেইল",
+    "manual": "ম্যানুয়াল সাইন-অফ বাকি",
+    "alembic": "প্রত্যাশিত মাইগ্রেশন: {version}",
+    "status": {
+      "pass": "পাস",
+      "fail": "ফেল",
+      "warn": "সতর্ক",
+      "manual": "ম্যানুয়াল"
     }
   },
   "adminCatalog": {

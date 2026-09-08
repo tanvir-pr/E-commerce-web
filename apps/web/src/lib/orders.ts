@@ -90,29 +90,22 @@ export type OrderSummary = {
   age_hours?: number | null;
 };
 
+export type DashboardPeriod = {
+  revenue_poisha: number;
+  order_count: number;
+  aov_poisha: number;
+  cod_share: number;
+  cancel_rate: number;
+};
+
 export type DashboardMetrics = {
   currency: string;
-  today: {
-    revenue_poisha: number;
-    order_count: number;
-    aov_poisha: number;
-    cod_share: number;
-    cancel_rate: number;
-  };
-  last_7_days: {
-    revenue_poisha: number;
-    order_count: number;
-    aov_poisha: number;
-    cod_share: number;
-    cancel_rate: number;
-  };
-  last_30_days: {
-    revenue_poisha: number;
-    order_count: number;
-    aov_poisha: number;
-    cod_share: number;
-    cancel_rate: number;
-  };
+  today: DashboardPeriod;
+  last_7_days: DashboardPeriod;
+  last_30_days: DashboardPeriod;
+  custom: DashboardPeriod | null;
+  range_from: string | null;
+  range_to: string | null;
   funnel: {
     pending_payment: number;
     confirmed: number;
@@ -136,6 +129,11 @@ export type DashboardMetrics = {
     revenue_poisha: number;
   }>;
   unshipped_confirmed: number;
+};
+
+export type MetricsRange = {
+  from?: string;
+  to?: string;
 };
 
 async function okJson<T>(response: Response): Promise<T> {
@@ -248,13 +246,34 @@ export async function validatePayment(
   return okJson(await apiPost(`/api/v1/payments/${method}/validate`, body, csrf));
 }
 
-export async function fetchAdminOrders(status = "all"): Promise<OrderSummary[]> {
-  const response = await fetch(`/api/v1/admin/orders?status=${encodeURIComponent(status)}`, {
+export async function fetchAdminOrders(
+  status = "all",
+  range?: MetricsRange,
+): Promise<OrderSummary[]> {
+  const params = new URLSearchParams({ status });
+  if (range?.from) {
+    params.set("from", range.from);
+  }
+  if (range?.to) {
+    params.set("to", range.to);
+  }
+  const response = await fetch(`/api/v1/admin/orders?${params}`, {
     credentials: "include",
     cache: "no-store",
   });
   const body = await okJson<{ items: OrderSummary[] }>(response);
   return body.items;
+}
+
+export function adminOrdersCsvUrl(status = "all", range?: MetricsRange): string {
+  const params = new URLSearchParams({ status });
+  if (range?.from) {
+    params.set("from", range.from);
+  }
+  if (range?.to) {
+    params.set("to", range.to);
+  }
+  return `/api/v1/admin/orders.csv?${params}`;
 }
 
 export async function fetchAdminOrder(id: string): Promise<Order> {
@@ -290,10 +309,30 @@ export async function transitionAdminOrder(
   );
 }
 
-export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
-  const response = await fetch("/api/v1/admin/metrics", {
+export async function fetchDashboardMetrics(range?: MetricsRange): Promise<DashboardMetrics> {
+  const params = new URLSearchParams();
+  if (range?.from) {
+    params.set("from", range.from);
+  }
+  if (range?.to) {
+    params.set("to", range.to);
+  }
+  const suffix = params.toString() ? `?${params}` : "";
+  const response = await fetch(`/api/v1/admin/metrics${suffix}`, {
     credentials: "include",
     cache: "no-store",
   });
   return okJson(response);
+}
+
+export function adminMetricsCsvUrl(range?: MetricsRange): string {
+  const params = new URLSearchParams();
+  if (range?.from) {
+    params.set("from", range.from);
+  }
+  if (range?.to) {
+    params.set("to", range.to);
+  }
+  const suffix = params.toString() ? `?${params}` : "";
+  return `/api/v1/admin/metrics.csv${suffix}`;
 }

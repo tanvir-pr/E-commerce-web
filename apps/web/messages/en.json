@@ -259,6 +259,9 @@
     "shipFieldsRequired": "Courier and tracking are required to ship.",
     "markAs": "Mark {status}",
     "transitioned": "Moved to {status}.",
+    "from": "From",
+    "to": "To",
+    "exportCsv": "Export CSV",
     "filter": {
       "all": "All"
     }
@@ -321,6 +324,14 @@
     "alertOverdue": "Overdue to ship: {count}",
     "alertAbandoned": "Abandoned cart value: {value}",
     "topProducts": "Top products (30d)",
+    "customRange": "Custom range",
+    "from": "From",
+    "to": "To",
+    "applyRange": "Apply",
+    "clearRange": "Clear",
+    "exportCsv": "Export CSV",
+    "customRevenue": "Custom range revenue",
+    "openLaunch": "Launch checklist",
     "funnel": {
       "pending_payment": "Pending pay",
       "confirmed": "Confirmed",
@@ -679,7 +690,24 @@
       "coupons": "Coupons",
       "reviews": "Reviews",
       "support": "Support",
+      "launch": "Launch",
       "settings": "Settings"
+    }
+  },
+  "adminLaunch": {
+    "hint": "Security and launch gates for 2027. Fix blocking failures first; sign off manual items (backup drill, oversell test, live payments) before go-live.",
+    "loadFailed": "Could not load launch readiness.",
+    "ready": "Ready for launch",
+    "yes": "Yes",
+    "no": "Not yet",
+    "blocking": "Blocking failures",
+    "manual": "Manual sign-offs left",
+    "alembic": "Expected migration: {version}",
+    "status": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "warn": "Warn",
+      "manual": "Manual"
     }
   },
   "adminCatalog": {
