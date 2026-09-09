@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { fetchMe, isStaff, type Me } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
 import {
+  adminOrdersCsvUrl,
   fetchAdminOrder,
   fetchAdminOrders,
   transitionAdminOrder,
@@ -29,6 +30,8 @@ export function AdminOrders() {
   const ta = useTranslations("admin");
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [status, setStatus] = useState<(typeof FILTERS)[number]>("confirmed");
+  const [from, setFrom] = useState("");
+  const [toDate, setToDate] = useState("");
   const [items, setItems] = useState<OrderSummary[]>([]);
   const [selected, setSelected] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +41,13 @@ export function AdminOrders() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setItems(await fetchAdminOrders(status));
+      const range =
+        from || toDate ? { from: from || undefined, to: toDate || undefined } : undefined;
+      setItems(await fetchAdminOrders(status, range));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("loadFailed"));
     }
-  }, [status, t]);
+  }, [status, from, toDate, t]);
 
   useEffect(() => {
     let active = true;
@@ -147,6 +152,35 @@ export function AdminOrders() {
         >
           {t("refresh")}
         </button>
+        <a
+          href={adminOrdersCsvUrl(
+            status,
+            from || toDate ? { from: from || undefined, to: toDate || undefined } : undefined,
+          )}
+          className="rounded-sm border border-line px-sm py-xs text-sm text-ink"
+        >
+          {t("exportCsv")}
+        </a>
+      </div>
+      <div className="flex flex-wrap items-end gap-sm">
+        <label className="flex flex-col gap-2xs text-sm">
+          <span className="text-muted">{t("from")}</span>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="border border-line bg-surface px-sm py-2xs"
+          />
+        </label>
+        <label className="flex flex-col gap-2xs text-sm">
+          <span className="text-muted">{t("to")}</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="border border-line bg-surface px-sm py-2xs"
+          />
+        </label>
       </div>
 
       {error ? (

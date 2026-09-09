@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { fetchMe, isStaff, type Me } from "@/lib/api";
 import { formatBdt } from "@/lib/catalog";
-import { fetchDashboardMetrics, type DashboardMetrics } from "@/lib/orders";
+import {
+  adminMetricsCsvUrl,
+  fetchDashboardMetrics,
+  type DashboardMetrics,
+} from "@/lib/orders";
 
 type AuditItem = {
   id: string;
@@ -28,6 +32,29 @@ export function AdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo, setAppliedTo] = useState("");
+
+  const load = useCallback(
+    async (rangeFrom: string, rangeTo: string) => {
+      const range =
+        rangeFrom || rangeTo
+          ? { from: rangeFrom || undefined, to: rangeTo || undefined }
+          : undefined;
+      const [dash, auditRes] = await Promise.all([
+        fetchDashboardMetrics(range),
+        fetch("/api/v1/admin/audit", { credentials: "include", cache: "no-store" }),
+      ]);
+      setMetrics(dash);
+      if (auditRes.ok) {
+        const body = (await auditRes.json()) as { items: AuditItem[] };
+        setAudit(body.items);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -42,18 +69,7 @@ export function AdminDashboard() {
         return;
       }
       try {
-        const [dash, auditRes] = await Promise.all([
-          fetchDashboardMetrics(),
-          fetch("/api/v1/admin/audit", { credentials: "include", cache: "no-store" }),
-        ]);
-        if (!active) {
-          return;
-        }
-        setMetrics(dash);
-        if (auditRes.ok) {
-          const body = (await auditRes.json()) as { items: AuditItem[] };
-          setAudit(body.items);
-        }
+        await load("", "");
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : tm("loadFailed"));
@@ -63,12 +79,36 @@ export function AdminDashboard() {
     return () => {
       active = false;
     };
-  }, [t, tm]);
+  }, [load, t, tm]);
+
+  async function applyRange() {
+    setError(null);
+    try {
+      setAppliedFrom(from);
+      setAppliedTo(to);
+      await load(from, to);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tm("loadFailed"));
+    }
+  }
+
+  async function clearRange() {
+    setFrom("");
+    setTo("");
+    setAppliedFrom("");
+    setAppliedTo("");
+    setError(null);
+    try {
+      await load("", "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tm("loadFailed"));
+    }
+  }
 
   if (me === undefined) {
     return <p className="text-sm text-muted">{t("loading")}</p>;
   }
-  if (error) {
+  if (error && !metrics) {
     return (
       <p role="alert" className="text-sm text-danger">
         {error}
@@ -77,6 +117,11 @@ export function AdminDashboard() {
   }
 
   const period = metrics?.last_7_days;
+  const csvHref = adminMetricsCsvUrl(
+    appliedFrom || appliedTo
+      ? { from: appliedFrom || undefined, to: appliedTo || undefined }
+      : undefined,
+  );
 
   return (
     <div className="flex flex-col gap-lg">
@@ -84,6 +129,55 @@ export function AdminDashboard() {
         {t("signedIn", { email: me?.email ?? "" })}
         {me?.totp_enabled ? ` · ${t("totpOn")}` : ""}
       </p>
+
+      <div className="flex flex-wrap items-end gap-sm">
+        <label className="flex flex-col gap-2xs text-sm">
+          <span className="text-muted">{tm("from")}</span>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="border border-line bg-surface px-sm py-2xs"
+          />
+        </label>
+        <label className="flex flex-col gap-2xs text-sm">
+          <span className="text-muted">{tm("to")}</span>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="border border-line bg-surface px-sm py-2xs"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => void applyRange()}
+          className="rounded-sm bg-ink px-md py-2xs text-sm text-paper"
+        >
+          {tm("applyRange")}
+        </button>
+        <button
+          type="button"
+          onClick={() => void clearRange()}
+          className="rounded-sm border border-line px-md py-2xs text-sm"
+        >
+          {tm("clearRange")}
+        </button>
+        <a
+          href={csvHref}
+          className="rounded-sm border border-line px-md py-2xs text-sm text-ink"
+        >
+          {tm("exportCsv")}
+        </a>
+        <Link href={`/${locale}/admin/launch`} className="text-sm text-sage underline">
+          {tm("openLaunch")}
+        </Link>
+      </div>
+      {error ? (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
 
       {metrics && period ? (
         <>
@@ -116,13 +210,23 @@ export function AdminDashboard() {
               </p>
             </div>
             <div className="border border-line p-sm">
-              <p className="text-xs text-muted">{tm("unshipped")}</p>
-              <p className="mt-2xs text-lg font-semibold text-ink">
-                {metrics.unshipped_confirmed}
+              <p className="text-xs text-muted">
+                {metrics.custom ? tm("customRevenue") : tm("unshipped")}
               </p>
-              <Link href={`/${locale}/admin/courier`} className="text-xs text-sage underline">
-                {tm("openCourier")}
-              </Link>
+              <p className="mt-2xs text-lg font-semibold text-ink">
+                {metrics.custom
+                  ? formatBdt(metrics.custom.revenue_poisha)
+                  : metrics.unshipped_confirmed}
+              </p>
+              {metrics.custom ? (
+                <p className="text-xs text-muted">
+                  {tm("ordersCount", { count: metrics.custom.order_count })}
+                </p>
+              ) : (
+                <Link href={`/${locale}/admin/courier`} className="text-xs text-sage underline">
+                  {tm("openCourier")}
+                </Link>
+              )}
             </div>
           </div>
 
